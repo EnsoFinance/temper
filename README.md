@@ -4,7 +4,7 @@ A simple API which simulates a given transaction request.
 
 [![test](https://github.com/EnsoFinance/transaction-simulator/actions/workflows/test.yaml/badge.svg)](https://github.com/EnsoFinance/transaction-simulator/actions/workflows/test.yaml)
 
-![cover](cover.png)
+![cover](cover.jpg)
 
 ## 📫 API 📫
 
