@@ -1,0 +1,73 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+name: test
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: testing ${{ matrix.job.os }} (${{ matrix.job.target }})
+    runs-on: ${{ matrix.job.os }}
+    strategy:
+      matrix:
+        job:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+
+    env:
+      ALCHEMY_KEY: ${{secrets.ALCHEMY_KEY}}
+      ETHERSCAN_KEY: ${{secrets.ETHERSCAN_KEY}}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.job.target }}
+          profile: minimal
+          override: true
+      - uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: true
+
+      - name: Cargo test
+        run: cargo test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: rustfmt, clippy
+          override: true
+
+      - uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: true
+
+      - name: cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all --check
+
+      - name: cargo clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          args: --all --all-features -- -D warnings
+          token: ${{ secrets.GITHUB_TOKEN }}

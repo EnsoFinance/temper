@@ -1,0 +1,28 @@
+[package]
+name = "transaction-simulator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# http
+warp = "0.3"
+tokio = { version = "1", features = ["full"] }
+
+# serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# bytes
+bytes = "1.2.1"
+
+# ethereum, evm
+revm = "2.1.0"
+ethers = { git = "https://github.com/gakonst/ethers-rs", rev = "80ac394" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "518e891" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "518e891" }
+
+# env, logs, errors
+dotenvy = "0.15"
+log = "0.4"
+pretty_env_logger = "0.4"
+eyre = "0.6"
