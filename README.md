@@ -4,6 +4,8 @@ A simple API which simulates a given transaction request.
 
 [![test](https://github.com/EnsoFinance/transaction-simulator/actions/workflows/test.yaml/badge.svg)](https://github.com/EnsoFinance/transaction-simulator/actions/workflows/test.yaml)
 
+![cover](cover.png)
+
 ## 📫 API 📫
 
 ### POST /api/v1/simulate
@@ -132,6 +134,10 @@ $ curl -H "Content-Type: application/json" --data @tests/body.json http://localh
 - [ ] Connect to local [reth](https://github.com/paradigmxyz/reth/) DB
 - [ ] Support simulating a bundle of transactions against different blocks, applying state as the simulation progresses. Would help support https://github.com/paradigmxyz/reth/issues/2018
 - [ ] Support more authentication methods
+
+### Contributing
+
+[See CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Types
 
