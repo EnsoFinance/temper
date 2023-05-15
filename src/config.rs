@@ -11,7 +11,10 @@ pub struct Config {
 pub fn get_config() -> Config {
     dotenv().ok();
 
-    let alchemy_key = std::env::var("ALCHEMY_KEY").expect("ALCHEMY_KEY must be set.");
+    let alchemy_key = std::env::var("ALCHEMY_KEY")
+        .ok()
+        .filter(|k| !k.is_empty())
+        .expect("ALCHEMY_KEY must be set.");
     let port = std::env::var("PORT")
         .unwrap_or("8080".to_string())
         .parse::<u16>()
