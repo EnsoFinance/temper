@@ -8,6 +8,5 @@ FROM centos:8
 
 # Copy the binary from the build stage to the current directory in the new stage
 COPY --from=build /app/target/release/transaction-simulator /transaction-simulator
-COPY ./.env ./.env
 EXPOSE 80
 CMD ["./transaction-simulator"]
