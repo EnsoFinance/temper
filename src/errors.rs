@@ -26,6 +26,11 @@ pub struct NoURLForChainIdError;
 impl Reject for NoURLForChainIdError {}
 
 #[derive(Debug)]
+pub struct IncorrectChainIdError();
+
+impl Reject for IncorrectChainIdError {}
+
+#[derive(Debug)]
 pub struct MultipleChainIdsError();
 
 impl Reject for MultipleChainIdsError {}
@@ -62,6 +67,9 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
     } else if let Some(NoURLForChainIdError) = err.find() {
         code = StatusCode::BAD_REQUEST;
         message = "CHAIN_ID_NOT_SUPPORTED".to_string();
+    } else if let Some(_e) = err.find::<IncorrectChainIdError>() {
+        code = StatusCode::BAD_REQUEST;
+        message = "INCORRECT_CHAIN_ID".to_string();
     } else if let Some(_e) = err.find::<MultipleChainIdsError>() {
         code = StatusCode::BAD_REQUEST;
         message = "MULTIPLE_CHAIN_IDS".to_string();

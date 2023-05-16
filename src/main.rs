@@ -1,6 +1,6 @@
 use std::env;
 
-use transaction_simulator::{config::get_config, errors::handle_rejection, simulate_routes};
+use transaction_simulator::{config::config, errors::handle_rejection, simulate_routes};
 use warp::Filter;
 
 #[tokio::main]
@@ -11,7 +11,7 @@ async fn main() {
     }
     pretty_env_logger::init();
 
-    let config = get_config();
+    let config = config();
 
     let port = config.port;
     let api_key = config.clone().api_key;

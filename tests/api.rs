@@ -2,7 +2,7 @@ use std::fs::File;
 
 use revm::Return;
 use transaction_simulator::{
-    config::get_config,
+    config::config,
     errors::{handle_rejection, ErrorMessage},
     simulate_routes,
     simulation::{SimulationRequest, SimulationResponse},
@@ -12,7 +12,7 @@ use warp::Filter;
 fn filter() -> impl Filter<Extract = (impl warp::Reply,), Error = std::convert::Infallible> + Clone
 {
     warp::any()
-        .and(simulate_routes(get_config()))
+        .and(simulate_routes(config()))
         .recover(handle_rejection)
 }
 
@@ -33,7 +33,7 @@ async fn post_simulate_file() {
 
     assert_eq!(res.status(), 200);
 
-    let body: SimulationResponse = serde_json::from_slice(&res.body()).unwrap();
+    let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
 
     let file = File::open("tests/expected.json").expect("file should open read only");
     let expected: SimulationResponse =
@@ -65,9 +65,9 @@ async fn post_simulate_frax_tx() {
 
     assert_eq!(res.status(), 200);
 
-    let body: SimulationResponse = serde_json::from_slice(&res.body()).unwrap();
+    let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
 
-    assert_eq!(body.success, true);
+    assert!(body.success);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -93,9 +93,9 @@ async fn post_simulate_zerox_swap() {
 
     assert_eq!(res.status(), 200);
 
-    let body: SimulationResponse = serde_json::from_slice(&res.body()).unwrap();
+    let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
 
-    assert_eq!(body.success, true);
+    assert!(body.success);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -121,10 +121,10 @@ async fn post_simulate_bundle_single_zerox_swap() {
 
     assert_eq!(res.status(), 200);
 
-    let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
+    let body: Vec<SimulationResponse> = serde_json::from_slice(res.body()).unwrap();
 
     assert_eq!(body.len(), 1);
-    assert_eq!(body[0].success, true);
+    assert!(body[0].success);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -156,11 +156,11 @@ async fn post_simulate_bundle() {
 
     assert_eq!(res.status(), 200);
 
-    let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
+    let body: Vec<SimulationResponse> = serde_json::from_slice(res.body()).unwrap();
 
     assert_eq!(body.len(), 2);
-    assert_eq!(body[0].success, true);
-    assert_eq!(body[1].success, true);
+    assert!(body[0].success);
+    assert!(body[1].success);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -192,11 +192,11 @@ async fn post_simulate_bundle_second_reverts() {
 
     assert_eq!(res.status(), 200);
 
-    let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
+    let body: Vec<SimulationResponse> = serde_json::from_slice(res.body()).unwrap();
 
     assert_eq!(body.len(), 2);
-    assert_eq!(body[0].success, true);
-    assert_eq!(body[1].success, false);
+    assert!(body[0].success);
+    assert!(!body[1].success);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -221,9 +221,45 @@ async fn post_simulate_no_data() {
 
     assert_eq!(res.status(), 200);
 
-    let body: SimulationResponse = serde_json::from_slice(&res.body()).unwrap();
+    let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
 
-    assert_eq!(body.success, true);
+    assert!(body.success);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn post_simulate_incorrect_chain_id() {
+    temp_env::async_with_vars(
+        [(
+            "FORK_URL",
+            Some("https://eth-mainnet.g.alchemy.com/v2/demo"),
+        )],
+        async {
+            let filter = filter();
+
+            let json = serde_json::json!({
+              "chainId": 137,
+              "from": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+              "to": "0x95222290dd7278aa3ddd389cc1e1d165cc4bafe5",
+              "gasLimit": 21000,
+              "value": "100000",
+              "blockNumber": 16784600
+            });
+
+            let res = warp::test::request()
+                .method("POST")
+                .path("/simulate")
+                .json(&json)
+                .reply(&filter)
+                .await;
+
+            assert_eq!(res.status(), 400);
+
+            let body: ErrorMessage = serde_json::from_slice(res.body()).unwrap();
+
+            assert_eq!(body.message, "INCORRECT_CHAIN_ID".to_string());
+        },
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -248,9 +284,9 @@ async fn post_simulate_not_enough_gas() {
 
     assert_eq!(res.status(), 200);
 
-    let body: SimulationResponse = serde_json::from_slice(&res.body()).unwrap();
+    let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
 
-    assert_eq!(body.success, false);
+    assert!(!body.success);
     assert_eq!(body.exit_reason, Return::OutOfGas);
 }
 
@@ -277,7 +313,7 @@ async fn post_simulate_invalid_from() {
 
     assert_eq!(res.status(), 400);
 
-    let body: ErrorMessage = serde_json::from_slice(&res.body()).unwrap();
+    let body: ErrorMessage = serde_json::from_slice(res.body()).unwrap();
 
     assert_eq!(body.message, "BAD REQUEST: invalid length 39, expected a (both 0x-prefixed or not) hex string or byte array containing 20 bytes at line 1 column 63".to_string());
 }
@@ -305,7 +341,7 @@ async fn post_simulate_invalid_to() {
 
     assert_eq!(res.status(), 400);
 
-    let body: ErrorMessage = serde_json::from_slice(&res.body()).unwrap();
+    let body: ErrorMessage = serde_json::from_slice(res.body()).unwrap();
 
     assert_eq!(body.message, "BAD REQUEST: invalid length 39, expected a (both 0x-prefixed or not) hex string or byte array containing 20 bytes at line 1 column 113".to_string());
 }
@@ -333,7 +369,7 @@ async fn post_simulate_invalid_data() {
 
     assert_eq!(res.status(), 400);
 
-    let body: ErrorMessage = serde_json::from_slice(&res.body()).unwrap();
+    let body: ErrorMessage = serde_json::from_slice(res.body()).unwrap();
 
     assert_eq!(
         body.message,
@@ -421,7 +457,7 @@ async fn post_simulate_bundle_multiple_block_numbers_invalid_order() {
 
     assert_eq!(res.status(), 400);
 
-    let body: ErrorMessage = serde_json::from_slice(&res.body()).unwrap();
+    let body: ErrorMessage = serde_json::from_slice(res.body()).unwrap();
 
     assert_eq!(
         body.message,

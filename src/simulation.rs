@@ -10,8 +10,8 @@ use warp::reply::Json;
 use warp::Rejection;
 
 use crate::errors::{
-    FromDecStrError, FromHexError, MultipleChainIdsError,
-    NoURLForChainIdError, InvalidBlockNumbersError,
+    FromDecStrError, FromHexError, IncorrectChainIdError,
+    MultipleChainIdsError, NoURLForChainIdError, InvalidBlockNumbersError,
 };
 
 use super::config::Config;
@@ -59,20 +59,15 @@ pub struct CallTrace {
     pub value: Uint,
 }
 
-fn chain_id_to_fork_url(chain_id: u64, alchemy_key: String) -> Result<String, Rejection> {
+fn chain_id_to_fork_url(chain_id: u64) -> Result<String, Rejection> {
     match chain_id {
         // ethereum
-        1 => Ok(format!(
-            "https://eth-mainnet.g.alchemy.com/v2/{alchemy_key}"
-        )),
-        5 => Ok(format!("https://eth-goerli.g.alchemy.com/v2/{alchemy_key}")),
+        1 => Ok("https://eth-mainnet.g.alchemy.com/v2/demo".to_string()),
+        5 => Ok("https://eth-goerli.g.alchemy.com/v2/demo".to_string()),
+        11155111 => Ok("https://eth-sepolia.g.alchemy.com/v2/demo".to_string()),
         // polygon
-        137 => Ok(format!(
-            "https://polygon-mainnet.g.alchemy.com/v2/{alchemy_key}"
-        )),
-        80001 => Ok(format!(
-            "https://polygon-mumbai.g.alchemy.com/v2/{alchemy_key}"
-        )),
+        137 => Ok("https://polygon-mainnet.g.alchemy.com/v2/demo".to_string()),
+        80001 => Ok("https://polygon-mumbai.g.alchemy.com/v2/demo".to_string()),
         // avalanche
         43114 => Ok("https://api.avax.network/ext/bc/C/rpc".to_string()),
         43113 => Ok("https://api.avax-test.network/ext/bc/C/rpc".to_string()),
@@ -150,8 +145,9 @@ async fn run(
 }
 
 pub async fn simulate(transaction: SimulationRequest, config: Config) -> Result<Json, Rejection> {
-    let alchemy_key = config.alchemy_key.clone();
-    let fork_url = chain_id_to_fork_url(transaction.chain_id, alchemy_key)?;
+    let fork_url = config
+        .fork_url
+        .unwrap_or(chain_id_to_fork_url(transaction.chain_id)?);
     let mut evm = Evm::new(
         None,
         fork_url,
@@ -160,6 +156,10 @@ pub async fn simulate(transaction: SimulationRequest, config: Config) -> Result<
         true,
         config.etherscan_key,
     );
+
+    if evm.get_chain_id() != Uint::from(transaction.chain_id) {
+        return Err(warp::reject::custom(IncorrectChainIdError()));
+    }
 
     let response = run(&mut evm, transaction, false).await?;
 
@@ -173,8 +173,9 @@ pub async fn simulate_bundle(
     let first_chain_id = transactions[0].chain_id;
     let first_block_number = transactions[0].block_number;
 
-    let alchemy_key = config.alchemy_key.clone();
-    let fork_url = chain_id_to_fork_url(first_chain_id, alchemy_key)?;
+    let fork_url = config
+        .fork_url
+        .unwrap_or(chain_id_to_fork_url(first_chain_id)?);
     let mut evm = Evm::new(
         None,
         fork_url,
@@ -183,6 +184,10 @@ pub async fn simulate_bundle(
         true,
         config.etherscan_key,
     );
+
+    if evm.get_chain_id() != Uint::from(first_chain_id) {
+        return Err(warp::reject::custom(IncorrectChainIdError()));
+    }
 
     let mut response = Vec::with_capacity(transactions.len());
     for transaction in transactions {
