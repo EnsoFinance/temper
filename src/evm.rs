@@ -194,4 +194,13 @@ impl Evm {
             formatted_trace,
         })
     }
+
+    pub async fn set_block(&mut self, number: u64) -> Result<(), EvmError> {
+        self.executor.env_mut().block.number = number.into();
+        Ok(())
+    }
+
+    pub fn get_block(&self) -> Uint {
+        self.executor.env().block.number
+    }
 }

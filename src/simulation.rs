@@ -10,8 +10,8 @@ use warp::reply::Json;
 use warp::Rejection;
 
 use crate::errors::{
-    FromDecStrError, FromHexError, MultipleBlockNumbersError, MultipleChainIdsError,
-    NoURLForChainIdError,
+    FromDecStrError, FromHexError, MultipleChainIdsError,
+    NoURLForChainIdError, InvalidBlockNumbersError,
 };
 
 use super::config::Config;
@@ -190,7 +190,12 @@ pub async fn simulate_bundle(
             return Err(warp::reject::custom(MultipleChainIdsError()));
         }
         if transaction.block_number != first_block_number {
-            return Err(warp::reject::custom(MultipleBlockNumbersError()));
+            let tx_block = transaction.block_number.expect("Transaction has no block number");
+            if transaction.block_number < first_block_number || tx_block < evm.get_block().as_u64() {
+                return Err(warp::reject::custom(InvalidBlockNumbersError()));
+            }
+            evm.set_block(tx_block).await.expect("Failed to set block number");
+            
         }
         response.push(run(&mut evm, transaction, true).await?);
     }
