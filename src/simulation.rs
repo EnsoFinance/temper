@@ -48,6 +48,8 @@ pub struct SimulationResponse {
     pub logs: Vec<Log>,
     #[serde(rename = "exitReason")]
     pub exit_reason: Return,
+    #[serde(rename = "returnData")]
+    pub return_data: Bytes,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -141,6 +143,7 @@ async fn run(
         logs: result.logs,
         exit_reason: result.exit_reason,
         formatted_trace: result.formatted_trace,
+        return_data: result.return_data,
     })
 }
 

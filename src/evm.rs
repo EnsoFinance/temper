@@ -19,6 +19,7 @@ pub struct CallRawResult {
     pub trace: Option<CallTraceArena>,
     pub logs: Vec<Log>,
     pub exit_reason: Return,
+    pub return_data: Bytes,
     pub formatted_trace: Option<String>,
 }
 
@@ -147,6 +148,7 @@ impl Evm {
             trace: res.traces,
             logs: res.logs,
             exit_reason: res.exit_reason,
+            return_data: Bytes(res.result),
             formatted_trace,
         })
     }
@@ -195,6 +197,7 @@ impl Evm {
             trace: res.traces,
             logs: res.logs,
             exit_reason: res.exit_reason,
+            return_data: Bytes(res.result),
             formatted_trace,
         })
     }

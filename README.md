@@ -161,6 +161,7 @@ export type SimulationResponse = {
   trace: CallTrace[];
   logs?: Log[];
   exitReason?: Reason;
+  bytes: string;
   formattedTrace?: string;
 };
 
