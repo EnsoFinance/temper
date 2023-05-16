@@ -129,7 +129,7 @@ $ curl -H "Content-Type: application/json" --data @tests/body.json http://localh
 
 ## 🧭 Roadmap 🧭
 
-- [ ] Support any RPC endpoint, not just Alchemy
+- [x] Support any RPC endpoint, not just Alchemy
 - [ ] Connect to local node via IPC
 - [ ] Connect to local [reth](https://github.com/paradigmxyz/reth/) DB
 - [ ] Support simulating a bundle of transactions against different blocks, applying state as the simulation progresses. Would help support https://github.com/paradigmxyz/reth/issues/2018

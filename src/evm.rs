@@ -51,6 +51,14 @@ impl Evm {
         let evm_opts = EvmOpts {
             fork_url: Some(fork_url.clone()),
             fork_block_number,
+            env: foundry_evm::executor::opts::Env {
+                chain_id: None,
+                code_size_limit: None,
+                gas_price: Some(0),
+                gas_limit: u64::MAX,
+                ..Default::default()
+            },
+            memory_limit: foundry_config::Config::default().memory_limit,
             ..Default::default()
         };
 
@@ -70,11 +78,7 @@ impl Evm {
         if let Some(env) = env {
             builder = builder.with_config(env);
         } else {
-            builder = builder.with_config(Env {
-                cfg: Default::default(),
-                block: fork_opts.env.block,
-                tx: Default::default(),
-            });
+            builder = builder.with_config(fork_opts.env.clone());
         }
 
         let executor = builder.build(db);
@@ -193,5 +197,9 @@ impl Evm {
             exit_reason: res.exit_reason,
             formatted_trace,
         })
+    }
+
+    pub fn get_chain_id(&self) -> Uint {
+        self.executor.env().cfg.chain_id
     }
 }
