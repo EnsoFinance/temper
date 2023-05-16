@@ -203,4 +203,13 @@ impl Evm {
     pub fn get_block(&self) -> Uint {
         self.executor.env().block.number
     }
+
+    pub async fn set_block_timestamp(&mut self, timestamp: u64) -> Result<(), EvmError> {
+        self.executor.env_mut().block.timestamp = timestamp.into();
+        Ok(())
+    }
+
+    pub fn get_block_timestamp(&self) -> Uint {
+        self.executor.env().block.timestamp
+    }
 }

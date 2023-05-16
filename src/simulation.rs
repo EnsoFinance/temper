@@ -195,7 +195,7 @@ pub async fn simulate_bundle(
                 return Err(warp::reject::custom(InvalidBlockNumbersError()));
             }
             evm.set_block(tx_block).await.expect("Failed to set block number");
-            
+            evm.set_block_timestamp(evm.get_block_timestamp().as_u64() + 12).await.expect("Failed to set block timestamp");
         }
         response.push(run(&mut evm, transaction, true).await?);
     }
