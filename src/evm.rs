@@ -219,9 +219,8 @@ impl Evm {
     pub fn get_block_timestamp(&self) -> Uint {
         self.executor.env().block.timestamp
     }
-    
+
     pub fn get_chain_id(&self) -> Uint {
         self.executor.env().cfg.chain_id
     }
-
 }

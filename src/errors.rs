@@ -45,7 +45,6 @@ pub struct InvalidBlockNumbersError();
 
 impl Reject for InvalidBlockNumbersError {}
 
-
 #[derive(Debug)]
 pub struct EvmError(pub Report);
 
