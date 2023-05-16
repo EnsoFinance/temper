@@ -1,5 +1,6 @@
 use std::fs::File;
 
+use ethers::types::U256;
 use revm::Return;
 use transaction_simulator::{
     config::config,
@@ -400,9 +401,17 @@ async fn post_simulate_bundle_multiple_block_numbers() {
       "chainId": 1,
       "from": "0x93621dca56fe26cdee86e4f6b18e116e9758ff11",
       "to": "0x7E7d64D987cAb6EeD08A191C4C2459dAF2f8ED0B",
-      "data": "0x796b89b9", // getBalance(0x7E7d64D987cAb6EeD08A191C4C2459dAF2f8ED0B): 0xf8b2cb4f00000000000000000000000093621dca56fe26cdee86e4f6b18e116e9758ff11
+      "data": "0x796b89b9",
       "gasLimit": 5000000,
       "blockNumber": 16968597,
+    },
+    {
+      "chainId": 1,
+      "from": "0x93621dca56fe26cdee86e4f6b18e116e9758ff11",
+      "to": "0x7E7d64D987cAb6EeD08A191C4C2459dAF2f8ED0B",
+      "data": "0x796b89b9",
+      "gasLimit": 5000000,
+      "blockNumber": 16968598,
     }]);
 
     let res = warp::test::request()
@@ -415,18 +424,27 @@ async fn post_simulate_bundle_multiple_block_numbers() {
     assert_eq!(res.status(), 200);
 
     let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
-    
-    assert_eq!(body.len(), 3);
+
+    assert_eq!(body.len(), 4);
     assert_eq!(body[0].success, true);
     assert_eq!(body[1].success, false);
     assert_eq!(body[2].success, true);
+    assert_eq!(body[3].success, true);
 
-    println!("{:#?}", body);
     assert_eq!(body[0].block_number, 16968595);
     assert_eq!(body[1].block_number, 16968596);
     assert_eq!(body[2].block_number, 16968597);
-}
+    assert_eq!(body[3].block_number, 16968598);
 
+    assert_eq!(
+        U256::from(body[2].return_data.0.to_vec().as_slice()),
+        U256::from(1680526127)
+    );
+    assert_eq!(
+        U256::from(body[3].return_data.0.to_vec().as_slice()),
+        U256::from(1680526127 + 12)
+    );
+}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_bundle_multiple_block_numbers_invalid_order() {
@@ -459,8 +477,5 @@ async fn post_simulate_bundle_multiple_block_numbers_invalid_order() {
 
     let body: ErrorMessage = serde_json::from_slice(res.body()).unwrap();
 
-    assert_eq!(
-        body.message,
-        "INVALID_BLOCK_NUMBERS".to_string()
-    );
+    assert_eq!(body.message, "INVALID_BLOCK_NUMBERS".to_string());
 }
