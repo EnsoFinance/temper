@@ -21,9 +21,6 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
 
-    env:
-      ETHERSCAN_KEY: ${{secrets.ETHERSCAN_KEY}}
-
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
