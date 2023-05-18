@@ -19,6 +19,11 @@ fn filter() -> impl Filter<Extract = (impl warp::Reply,), Error = std::convert::
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_file() {
+    if config().etherscan_key.is_some() {
+        eprintln!("etherscan_key is some, skipping test");
+        return;
+    }
+
     let filter = filter();
 
     let file = File::open("tests/body.json").expect("file should open read only");
@@ -34,9 +39,51 @@ async fn post_simulate_file() {
 
     assert_eq!(res.status(), 200);
 
+    // Uncomment to create new file, if you've made changes to the expected response
+    // let mut file = File::create("tests/expected.json").expect("file should open write only");
+    // file.write_all(res.body()).expect("file should be written");
+
     let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
 
     let file = File::open("tests/expected.json").expect("file should open read only");
+    let expected: SimulationResponse =
+        serde_json::from_reader(file).expect("file should be proper JSON");
+
+    assert_eq!(body, expected);
+}
+
+/// The difference between this test and `post_simulate_file` is that this one checks against
+/// a file which has the Etherscan decoded traces included. Therefore, the etherscan_key must be set
+/// also when running tests to get the same output. If not, it's skipped.
+#[tokio::test(flavor = "multi_thread")]
+async fn post_simulate_file_etherscan() {
+    if config().etherscan_key.is_none() {
+        eprintln!("etherscan_key is none, skipping test");
+        return;
+    }
+
+    let filter = filter();
+
+    let file = File::open("tests/body.json").expect("file should open read only");
+    let json: SimulationRequest =
+        serde_json::from_reader(file).expect("file should be proper JSON");
+
+    let res = warp::test::request()
+        .method("POST")
+        .path("/simulate")
+        .json(&json)
+        .reply(&filter)
+        .await;
+
+    assert_eq!(res.status(), 200);
+
+    // Uncomment to create new file, if you've made changes to the expected response
+    // let mut file = File::create("tests/expected_etherscan.json").expect("file should open write only");
+    // file.write_all(res.body()).expect("file should be written");
+
+    let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
+
+    let file = File::open("tests/expected_etherscan.json").expect("file should open read only");
     let expected: SimulationResponse =
         serde_json::from_reader(file).expect("file should be proper JSON");
 
