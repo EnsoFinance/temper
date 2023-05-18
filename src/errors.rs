@@ -4,7 +4,7 @@ use std::{convert::Infallible, error::Error};
 
 use warp::{body::BodyDeserializeError, hyper::StatusCode, reject::Reject, Rejection, Reply};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ErrorMessage {
     pub code: u16,
     pub message: String,
@@ -41,6 +41,11 @@ pub struct MultipleBlockNumbersError();
 impl Reject for MultipleBlockNumbersError {}
 
 #[derive(Debug)]
+pub struct InvalidBlockNumbersError();
+
+impl Reject for InvalidBlockNumbersError {}
+
+#[derive(Debug)]
 pub struct EvmError(pub Report);
 
 impl Reject for EvmError {}
@@ -70,6 +75,9 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
     } else if let Some(_e) = err.find::<MultipleBlockNumbersError>() {
         code = StatusCode::BAD_REQUEST;
         message = "MULTIPLE_BLOCK_NUMBERS".to_string();
+    } else if let Some(_e) = err.find::<InvalidBlockNumbersError>() {
+        code = StatusCode::BAD_REQUEST;
+        message = "INVALID_BLOCK_NUMBERS".to_string();
     } else if let Some(_e) = err.find::<EvmError>() {
         code = StatusCode::INTERNAL_SERVER_ERROR;
         message = "EVM_ERROR".to_string();

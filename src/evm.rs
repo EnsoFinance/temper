@@ -202,6 +202,24 @@ impl Evm {
         })
     }
 
+    pub async fn set_block(&mut self, number: u64) -> Result<(), EvmError> {
+        self.executor.env_mut().block.number = number.into();
+        Ok(())
+    }
+
+    pub fn get_block(&self) -> Uint {
+        self.executor.env().block.number
+    }
+
+    pub async fn set_block_timestamp(&mut self, timestamp: u64) -> Result<(), EvmError> {
+        self.executor.env_mut().block.timestamp = timestamp.into();
+        Ok(())
+    }
+
+    pub fn get_block_timestamp(&self) -> Uint {
+        self.executor.env().block.timestamp
+    }
+
     pub fn get_chain_id(&self) -> Uint {
         self.executor.env().cfg.chain_id
     }

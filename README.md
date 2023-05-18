@@ -83,7 +83,7 @@ Example response:
 Notes:
 
 - `chainId` must be the same in all transactions.
-- `blockNumber` must be the same in all transactions, or omitted in all transactions to use latest.
+- `blockNumber` can be included and incremented when a multi-block simulation is required, or omitted in all transactions to use latest.
 
 ### Authentication
 
