@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
 use ethers::abi::{Address, Uint};
-use ethers::types::{Bytes, Log};
+use ethers::core::types::Log;
+use ethers::types::Bytes;
 use foundry_evm::CallKind;
-use revm::Return;
+use revm::interpreter::InstructionResult;
 use serde::{Deserialize, Serialize};
 use warp::reject::custom;
 use warp::reply::Json;
@@ -47,7 +48,7 @@ pub struct SimulationResponse {
     pub formatted_trace: Option<String>,
     pub logs: Vec<Log>,
     #[serde(rename = "exitReason")]
-    pub exit_reason: Return,
+    pub exit_reason: InstructionResult,
     #[serde(rename = "returnData")]
     pub return_data: Bytes,
 }

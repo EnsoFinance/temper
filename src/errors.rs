@@ -79,8 +79,13 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
         code = StatusCode::BAD_REQUEST;
         message = "INVALID_BLOCK_NUMBERS".to_string();
     } else if let Some(_e) = err.find::<EvmError>() {
-        code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = "EVM_ERROR".to_string();
+        if _e.0.to_string().contains("CallGasCostMoreThanGasLimit") {
+            code = StatusCode::BAD_REQUEST;
+            message = "OUT_OF_GAS".to_string();
+        } else {
+            code = StatusCode::INTERNAL_SERVER_ERROR;
+            message = "EVM_ERROR".to_string();
+        }
     } else if let Some(e) = err.find::<BodyDeserializeError>() {
         // This error happens if the body could not be deserialized correctly
         // We can use the cause to analyze the error and customize the error message

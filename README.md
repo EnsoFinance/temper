@@ -160,7 +160,7 @@ export type SimulationResponse = {
   success: boolean;
   trace: CallTrace[];
   logs?: Log[];
-  exitReason?: Reason;
+  exitReason?: InstructionResult;
   bytes: string;
   formattedTrace?: string;
 };
@@ -187,7 +187,7 @@ export enum CallType {
   CREATE2,
 }
 
-export enum Reason {
+export enum InstructionResult {
   //success codes
   Continue,
   Stop,

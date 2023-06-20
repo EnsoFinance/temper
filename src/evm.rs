@@ -1,12 +1,14 @@
 use ethers::abi::{Address, Uint};
-use ethers::types::{Bytes, Log};
+use ethers::core::types::Log;
+use ethers::types::Bytes;
+use foundry_config::Chain;
 use foundry_evm::executor::{fork::CreateFork, Executor};
 use foundry_evm::executor::{opts::EvmOpts, Backend, ExecutorBuilder};
 use foundry_evm::trace::identifier::{EtherscanIdentifier, SignaturesIdentifier};
 use foundry_evm::trace::node::CallTraceNode;
 use foundry_evm::trace::{CallTraceArena, CallTraceDecoder, CallTraceDecoderBuilder};
-use revm::Env;
-use revm::Return;
+use revm::interpreter::InstructionResult;
+use revm::primitives::Env;
 
 use crate::errors::EvmError;
 use crate::simulation::CallTrace;
@@ -18,7 +20,7 @@ pub struct CallRawResult {
     pub success: bool,
     pub trace: Option<CallTraceArena>,
     pub logs: Vec<Log>,
-    pub exit_reason: Return,
+    pub exit_reason: InstructionResult,
     pub return_data: Bytes,
     pub formatted_trace: Option<String>,
 }
@@ -89,8 +91,8 @@ impl Evm {
             ..Default::default()
         };
 
-        let etherscan_identifier =
-            EtherscanIdentifier::new(&foundry_config, Some(fork_opts.env.cfg.chain_id)).ok();
+        let chain: Chain = fork_opts.env.cfg.chain_id.to::<u64>().into();
+        let etherscan_identifier = EtherscanIdentifier::new(&foundry_config, Some(chain)).ok();
         let mut decoder = CallTraceDecoderBuilder::new().with_verbosity(5).build();
 
         if let Ok(identifier) =
@@ -143,7 +145,7 @@ impl Evm {
 
         Ok(CallRawResult {
             gas_used: res.gas_used,
-            block_number: res.env.block.number.as_u64(),
+            block_number: res.env.block.number.to(),
             success: !res.reverted,
             trace: res.traces,
             logs: res.logs,
@@ -192,7 +194,7 @@ impl Evm {
 
         Ok(CallRawResult {
             gas_used: res.gas_used,
-            block_number: res.env.block.number.as_u64(),
+            block_number: res.env.block.number.to(),
             success: !res.reverted,
             trace: res.traces,
             logs: res.logs,
@@ -203,24 +205,24 @@ impl Evm {
     }
 
     pub async fn set_block(&mut self, number: u64) -> Result<(), EvmError> {
-        self.executor.env_mut().block.number = number.into();
+        self.executor.env_mut().block.number = Uint::from(number).into();
         Ok(())
     }
 
     pub fn get_block(&self) -> Uint {
-        self.executor.env().block.number
+        self.executor.env().block.number.into()
     }
 
     pub async fn set_block_timestamp(&mut self, timestamp: u64) -> Result<(), EvmError> {
-        self.executor.env_mut().block.timestamp = timestamp.into();
+        self.executor.env_mut().block.timestamp = Uint::from(timestamp).into();
         Ok(())
     }
 
     pub fn get_block_timestamp(&self) -> Uint {
-        self.executor.env().block.timestamp
+        self.executor.env().block.timestamp.into()
     }
 
     pub fn get_chain_id(&self) -> Uint {
-        self.executor.env().cfg.chain_id
+        self.executor.env().cfg.chain_id.into()
     }
 }
