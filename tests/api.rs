@@ -1,7 +1,6 @@
-use std::fs::File;
+use std::{fs::File, io::Write};
 
 use ethers::types::U256;
-use revm::Return;
 use transaction_simulator::{
     config::config,
     errors::{handle_rejection, ErrorMessage},
@@ -330,12 +329,11 @@ async fn post_simulate_not_enough_gas() {
         .reply(&filter)
         .await;
 
-    assert_eq!(res.status(), 200);
+    assert_eq!(res.status(), 400);
 
-    let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
+    let body: ErrorMessage = serde_json::from_slice(res.body()).unwrap();
 
-    assert!(!body.success);
-    assert_eq!(body.exit_reason, Return::OutOfGas);
+    assert_eq!(body.message, "OUT_OF_GAS".to_string());
 }
 
 #[tokio::test(flavor = "multi_thread")]

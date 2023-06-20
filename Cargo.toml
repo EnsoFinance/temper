@@ -16,10 +16,17 @@ serde_json = "1"
 bytes = "1.2.1"
 
 # ethereum, evm
-revm = "2.1.0"
-ethers = { git = "https://github.com/gakonst/ethers-rs", rev = "80ac394" }
-foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "518e891" }
-foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "518e891" }
+revm = { version = "3", default-features = false, features = [
+  "std",
+  "serde",
+  "memory_limit",
+  "optional_eip3607",
+  "optional_block_gas_limit",
+  "optional_no_base_fee"
+] }
+ethers = { git = "https://github.com/gakonst/ethers-rs" }
+foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "12ea9f6" }
+foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "12ea9f6" }
 
 # env, logs, errors
 dotenvy = "0.15"
