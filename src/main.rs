@@ -1,8 +1,10 @@
 use std::{
     collections::HashMap,
     env,
-    sync::{Arc, Mutex},
+    sync::{Arc},
 };
+
+use tokio::sync::Mutex;
 
 use transaction_simulator::{
     config::config, errors::handle_rejection, evm::Evm, simulate_routes, SharedSimulationState,

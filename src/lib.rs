@@ -3,8 +3,9 @@ use serde::de::DeserializeOwned;
 use simulation::{SimulationRequest, StatefulSimulationRequest};
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc},
 };
+use tokio::sync::Mutex;
 use warp::{Filter, Rejection, Reply};
 
 pub mod config;

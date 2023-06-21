@@ -242,7 +242,7 @@ pub async fn simulate_stateful_new(
     state: Arc<SharedSimulationState>,
 ) -> Result<Json, Rejection> {
     let new_id = {
-        let mut id = state.stateful_simulation_id.lock().unwrap();
+        let mut id = state.stateful_simulation_id.lock().await;
         *id += 1;
         *id
     };
@@ -259,7 +259,7 @@ pub async fn simulate_stateful_new(
         config.etherscan_key,
     );
 
-    state.evms.lock().unwrap().insert(new_id, evm);
+    state.evms.lock().await.insert(new_id, evm);
 
     let response = StatefulSimulationResponse {
         stateful_simulation_id: new_id,
@@ -284,7 +284,7 @@ pub async fn simulate_stateful(
     let mut response = Vec::with_capacity(transactions.len());
 
     // Lock the hashmap once, for the entire duration of the function.
-    let mut evms = state.evms.lock().unwrap();
+    let mut evms = state.evms.lock().await;
 
     // Get the EVM here.
     let evm = evms
