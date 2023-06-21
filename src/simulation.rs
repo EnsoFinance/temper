@@ -66,9 +66,9 @@ pub struct StatefulSimulationRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-struct StatefulSimulationResponse {
+pub struct StatefulSimulationResponse {
     #[serde(rename = "statefulSimulationId")]
-    stateful_simulation_id: u32,
+    pub stateful_simulation_id: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

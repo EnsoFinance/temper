@@ -70,6 +70,7 @@ pub fn simulate_stateful(
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!("simulate-stateful")
         .and(warp::path::param::<u32>())
+        .and(warp::path::end())
         .and(warp::post())
         .and(json_body())
         .and(with_state(state))
