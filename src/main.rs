@@ -1,7 +1,8 @@
-use std::env;
+use std::{env, sync::{Arc, Mutex}, collections::HashMap};
 
-use transaction_simulator::{config::config, errors::handle_rejection, simulate_routes};
+use transaction_simulator::{config::config, errors::handle_rejection, simulate_routes, evm::Evm, SharedSimulationState};
 use warp::Filter;
+
 
 #[tokio::main]
 async fn main() {
@@ -29,8 +30,14 @@ async fn main() {
         api_base.boxed()
     };
 
+    let shared_state = Arc::new(SharedSimulationState {
+        stateful_simulation_id: Arc::new(Mutex::new(0)),
+        evms: Arc::new(Mutex::new(HashMap::new())),
+    });
+    
+
     let routes = api_base
-        .and(simulate_routes(config))
+        .and(simulate_routes(config, shared_state))
         .recover(handle_rejection)
         .with(warp::log("ts::api"));
 

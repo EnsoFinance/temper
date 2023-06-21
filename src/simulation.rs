@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 use ethers::abi::{Address, Uint};
 use ethers::core::types::Log;
@@ -10,6 +11,8 @@ use warp::reject::custom;
 use warp::reply::Json;
 use warp::Rejection;
 
+use crate::SharedSimulationState;
+use crate::config::StatefulConfig;
 use crate::errors::{
     FromDecStrError, FromHexError, IncorrectChainIdError, InvalidBlockNumbersError,
     MultipleChainIdsError, NoURLForChainIdError,
@@ -51,6 +54,22 @@ pub struct SimulationResponse {
     pub exit_reason: InstructionResult,
     #[serde(rename = "returnData")]
     pub return_data: Bytes,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StatefulSimulationRequest {
+    #[serde(rename = "chainId")]
+    pub chain_id: u64,
+    pub gas_limit: u64,
+    #[serde(rename = "blockNumber")]
+    pub block_number: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct StatefulSimulationResponse {
+    #[serde(rename = "statefulSimulationId")]
+    stateful_simulation_id: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -173,6 +192,83 @@ pub async fn simulate(transaction: SimulationRequest, config: Config) -> Result<
 pub async fn simulate_bundle(
     transactions: Vec<SimulationRequest>,
     config: Config,
+) -> Result<Json, Rejection> {
+    let first_chain_id = transactions[0].chain_id;
+    let first_block_number = transactions[0].block_number;
+
+    let fork_url = config
+        .fork_url
+        .unwrap_or(chain_id_to_fork_url(first_chain_id)?);
+    let mut evm = Evm::new(
+        None,
+        fork_url,
+        first_block_number,
+        transactions[0].gas_limit,
+        true,
+        config.etherscan_key,
+    );
+
+    if evm.get_chain_id() != Uint::from(first_chain_id) {
+        return Err(warp::reject::custom(IncorrectChainIdError()));
+    }
+
+    let mut response = Vec::with_capacity(transactions.len());
+    for transaction in transactions {
+        if transaction.chain_id != first_chain_id {
+            return Err(warp::reject::custom(MultipleChainIdsError()));
+        }
+        if transaction.block_number != first_block_number {
+            let tx_block = transaction
+                .block_number
+                .expect("Transaction has no block number");
+            if transaction.block_number < first_block_number || tx_block < evm.get_block().as_u64()
+            {
+                return Err(warp::reject::custom(InvalidBlockNumbersError()));
+            }
+            evm.set_block(tx_block)
+                .await
+                .expect("Failed to set block number");
+            evm.set_block_timestamp(evm.get_block_timestamp().as_u64() + 12)
+                .await
+                .expect("Failed to set block timestamp");
+        }
+        response.push(run(&mut evm, transaction, true).await?);
+    }
+
+    Ok(warp::reply::json(&response))
+}
+
+pub async fn simulate_stateful_new(
+    stateful_simulation_request: StatefulSimulationRequest,
+    config: Config,
+    state: Arc<SharedSimulationState>,
+) -> Result<Json, Rejection> {
+
+    let fork_url = config
+        .fork_url
+        .unwrap_or(chain_id_to_fork_url(stateful_simulation_request.chain_id)?);
+    let mut evm = Evm::new(
+        None,
+        fork_url,
+        stateful_simulation_request.block_number,
+        stateful_simulation_request.gas_limit,
+        true,
+        config.etherscan_key,
+    );
+
+    let response = StatefulSimulationResponse {
+        stateful_simulation_id: 0,
+    };
+
+    Ok(warp::reply::json(&response))
+}
+
+
+pub async fn simulate_stateful(
+    param: u32,
+    transactions: Vec<SimulationRequest>,
+    config: Config,
+    state: Arc<SharedSimulationState>,
 ) -> Result<Json, Rejection> {
     let first_chain_id = transactions[0].chain_id;
     let first_block_number = transactions[0].block_number;
