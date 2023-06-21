@@ -283,9 +283,7 @@ pub async fn simulate_stateful(
     let mut evms = state.evms.lock().await;
 
     // Get the EVM here.
-    let evm = evms
-        .get_mut(&param)
-        .ok_or_else(|| warp::reject::not_found())?;
+    let evm = evms.get_mut(&param).ok_or_else(warp::reject::not_found)?;
 
     if evm.get_chain_id() != Uint::from(first_chain_id) {
         return Err(warp::reject::custom(IncorrectChainIdError()));

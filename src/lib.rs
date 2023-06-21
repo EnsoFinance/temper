@@ -24,7 +24,7 @@ pub fn simulate_routes(
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     simulate(config.clone())
         .or(simulate_bundle(config.clone()))
-        .or(simulate_stateful_new(config.clone(), state.clone()))
+        .or(simulate_stateful_new(config, state.clone()))
         .or(simulate_stateful(state))
 }
 
