@@ -7,7 +7,7 @@ use std::{
 use tokio::sync::Mutex;
 
 use transaction_simulator::{
-    config::config, errors::handle_rejection, evm::Evm, simulate_routes, SharedSimulationState,
+    config::config, errors::handle_rejection, simulate_routes, SharedSimulationState,
 };
 use warp::Filter;
 

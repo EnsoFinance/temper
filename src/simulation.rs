@@ -59,6 +59,7 @@ pub struct SimulationResponse {
 pub struct StatefulSimulationRequest {
     #[serde(rename = "chainId")]
     pub chain_id: u64,
+    #[serde(rename = "gasLimit")]
     pub gas_limit: u64,
     #[serde(rename = "blockNumber")]
     pub block_number: Option<u64>,
@@ -271,15 +272,10 @@ pub async fn simulate_stateful_new(
 pub async fn simulate_stateful(
     param: u32,
     transactions: Vec<SimulationRequest>,
-    config: Config,
     state: Arc<SharedSimulationState>,
 ) -> Result<Json, Rejection> {
     let first_chain_id = transactions[0].chain_id;
     let first_block_number = transactions[0].block_number;
-
-    let fork_url = config
-        .fork_url
-        .unwrap_or(chain_id_to_fork_url(first_chain_id)?);
 
     let mut response = Vec::with_capacity(transactions.len());
 
