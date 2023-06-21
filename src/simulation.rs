@@ -11,11 +11,11 @@ use warp::reject::custom;
 use warp::reply::Json;
 use warp::Rejection;
 
-use crate::SharedSimulationState;
 use crate::errors::{
     FromDecStrError, FromHexError, IncorrectChainIdError, InvalidBlockNumbersError,
     MultipleChainIdsError, NoURLForChainIdError,
 };
+use crate::SharedSimulationState;
 
 use super::config::Config;
 use super::evm::Evm;
@@ -54,7 +54,6 @@ pub struct SimulationResponse {
     #[serde(rename = "returnData")]
     pub return_data: Bytes,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatefulSimulationRequest {
@@ -269,7 +268,6 @@ pub async fn simulate_stateful_new(
     Ok(warp::reply::json(&response))
 }
 
-
 pub async fn simulate_stateful(
     param: u32,
     transactions: Vec<SimulationRequest>,
@@ -282,14 +280,16 @@ pub async fn simulate_stateful(
     let fork_url = config
         .fork_url
         .unwrap_or(chain_id_to_fork_url(first_chain_id)?);
-    
+
     let mut response = Vec::with_capacity(transactions.len());
 
     // Lock the hashmap once, for the entire duration of the function.
     let mut evms = state.evms.lock().unwrap();
 
     // Get the EVM here.
-    let evm = evms.get_mut(&param).ok_or_else(|| warp::reject::not_found())?;
+    let evm = evms
+        .get_mut(&param)
+        .ok_or_else(|| warp::reject::not_found())?;
 
     if evm.get_chain_id() != Uint::from(first_chain_id) {
         return Err(warp::reject::custom(IncorrectChainIdError()));
