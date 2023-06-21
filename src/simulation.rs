@@ -12,7 +12,6 @@ use warp::reply::Json;
 use warp::Rejection;
 
 use crate::SharedSimulationState;
-use crate::config::StatefulConfig;
 use crate::errors::{
     FromDecStrError, FromHexError, IncorrectChainIdError, InvalidBlockNumbersError,
     MultipleChainIdsError, NoURLForChainIdError,
@@ -243,11 +242,16 @@ pub async fn simulate_stateful_new(
     config: Config,
     state: Arc<SharedSimulationState>,
 ) -> Result<Json, Rejection> {
+    let new_id = {
+        let mut id = state.stateful_simulation_id.lock().unwrap();
+        *id += 1;
+        *id
+    };
 
     let fork_url = config
         .fork_url
         .unwrap_or(chain_id_to_fork_url(stateful_simulation_request.chain_id)?);
-    let mut evm = Evm::new(
+    let evm = Evm::new(
         None,
         fork_url,
         stateful_simulation_request.block_number,
@@ -256,8 +260,10 @@ pub async fn simulate_stateful_new(
         config.etherscan_key,
     );
 
+    state.evms.lock().unwrap().insert(new_id, evm);
+
     let response = StatefulSimulationResponse {
-        stateful_simulation_id: 0,
+        stateful_simulation_id: new_id,
     };
 
     Ok(warp::reply::json(&response))
@@ -276,20 +282,19 @@ pub async fn simulate_stateful(
     let fork_url = config
         .fork_url
         .unwrap_or(chain_id_to_fork_url(first_chain_id)?);
-    let mut evm = Evm::new(
-        None,
-        fork_url,
-        first_block_number,
-        transactions[0].gas_limit,
-        true,
-        config.etherscan_key,
-    );
+    
+    let mut response = Vec::with_capacity(transactions.len());
+
+    // Lock the hashmap once, for the entire duration of the function.
+    let mut evms = state.evms.lock().unwrap();
+
+    // Get the EVM here.
+    let evm = evms.get_mut(&param).ok_or_else(|| warp::reject::not_found())?;
 
     if evm.get_chain_id() != Uint::from(first_chain_id) {
         return Err(warp::reject::custom(IncorrectChainIdError()));
     }
 
-    let mut response = Vec::with_capacity(transactions.len());
     for transaction in transactions {
         if transaction.chain_id != first_chain_id {
             return Err(warp::reject::custom(MultipleChainIdsError()));
@@ -309,7 +314,7 @@ pub async fn simulate_stateful(
                 .await
                 .expect("Failed to set block timestamp");
         }
-        response.push(run(&mut evm, transaction, true).await?);
+        response.push(run(evm, transaction, true).await?);
     }
 
     Ok(warp::reply::json(&response))

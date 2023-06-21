@@ -8,17 +8,6 @@ pub struct Config {
     pub api_key: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct StatefulConfig {
-    pub port: u16,
-    pub fork_url: Option<String>,
-    pub etherscan_key: Option<String>,
-    pub api_key: Option<String>,
-    pub block_number: Option<u64>,
-    pub chain_id: u64,
-    pub gas_limit: u64,
-}
-
 pub fn config() -> Config {
     dotenv().ok();
 
