@@ -1,4 +1,4 @@
-use std::{fs::File, sync::Arc, collections::HashMap};
+use std::{collections::HashMap, fs::File, sync::Arc};
 
 use ethers::types::U256;
 use tokio::sync::Mutex;
@@ -6,7 +6,8 @@ use transaction_simulator::{
     config::config,
     errors::{handle_rejection, ErrorMessage},
     simulate_routes,
-    simulation::{SimulationRequest, SimulationResponse, StatefulSimulationResponse}, SharedSimulationState,
+    simulation::{SimulationRequest, SimulationResponse, StatefulSimulationResponse},
+    SharedSimulationState,
 };
 use warp::Filter;
 
@@ -531,7 +532,6 @@ async fn post_simulate_bundle_multiple_block_numbers_invalid_order() {
     assert_eq!(body.message, "INVALID_BLOCK_NUMBERS".to_string());
 }
 
-
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_stateful() {
     let filter = filter();
@@ -542,7 +542,6 @@ async fn post_simulate_stateful() {
         "blockNumber": 16968594,
     });
 
-
     let res = warp::test::request()
         .method("POST")
         .path("/simulate-stateful-new")
@@ -550,13 +549,12 @@ async fn post_simulate_stateful() {
         .reply(&filter)
         .await;
 
-
     assert_eq!(res.status(), 200);
-    
-    let body: StatefulSimulationResponse = serde_json::from_slice(&res.body()).unwrap();
-    println!("{:?}", body);
-    
-    assert_eq!(body.stateful_simulation_id, 1);
+
+    let simulation_response_body: StatefulSimulationResponse =
+        serde_json::from_slice(&res.body()).unwrap();
+
+    assert_eq!(simulation_response_body.stateful_simulation_id, 1);
     let first_request = serde_json::json!([{
       "chainId": 1,
       "from": "0x93621dca56fe26cdee86e4f6b18e116e9758ff11",
@@ -572,6 +570,31 @@ async fn post_simulate_stateful() {
       "gasLimit": 5000000,
       "blockNumber": 16968596,
     }]);
+
+    let res = warp::test::request()
+        .method("POST")
+        .path(
+            format!(
+                "/simulate-stateful/{}",
+                simulation_response_body.stateful_simulation_id
+            )
+            .as_str(),
+        )
+        .json(&first_request)
+        .reply(&filter)
+        .await;
+
+    assert_eq!(res.status(), 200);
+
+    let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
+
+    assert_eq!(body.len(), 2);
+    assert_eq!(body[0].success, true);
+    assert_eq!(body[1].success, false);
+
+    assert_eq!(body[0].block_number, 16968595);
+    assert_eq!(body[1].block_number, 16968596);
+
     let second_request = serde_json::json!([{
       "chainId": 1,
       "from": "0x93621dca56fe26cdee86e4f6b18e116e9758ff11",
@@ -591,37 +614,33 @@ async fn post_simulate_stateful() {
 
     let res = warp::test::request()
         .method("POST")
-        .path(format!("/simulate-stateful/{}", body.stateful_simulation_id).as_str())
-        .json(&first_request)
+        .path(
+            format!(
+                "/simulate-stateful/{}",
+                simulation_response_body.stateful_simulation_id
+            )
+            .as_str(),
+        )
+        .json(&second_request)
         .reply(&filter)
         .await;
 
     assert_eq!(res.status(), 200);
 
     let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
-
-    println!("{:?}", body);
-
     assert_eq!(body.len(), 2);
+
     assert_eq!(body[0].success, true);
-    assert_eq!(body[1].success, false);
+    assert_eq!(body[1].success, true);
+    assert_eq!(body[0].block_number, 16968597);
+    assert_eq!(body[1].block_number, 16968598);
 
-
-    assert_eq!(body[0].block_number, 16968595);
-    assert_eq!(body[1].block_number, 16968596);
-
-
-    // assert_eq!(body[2].success, true);
-    // assert_eq!(body[3].success, true);
-    // assert_eq!(body[2].block_number, 16968597);
-    // assert_eq!(body[3].block_number, 16968598);
-
-    // assert_eq!(
-    //     U256::from(body[2].return_data.0.to_vec().as_slice()),
-    //     U256::from(1680526127)
-    // );
-    // assert_eq!(
-    //     U256::from(body[3].return_data.0.to_vec().as_slice()),
-    //     U256::from(1680526127 + 12)
-    // );
+    assert_eq!(
+        U256::from(body[0].return_data.0.to_vec().as_slice()),
+        U256::from(1680526127)
+    );
+    assert_eq!(
+        U256::from(body[1].return_data.0.to_vec().as_slice()),
+        U256::from(1680526127 + 12)
+    );
 }

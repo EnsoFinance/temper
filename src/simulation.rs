@@ -295,7 +295,9 @@ pub async fn simulate_stateful(
         if transaction.chain_id != first_chain_id {
             return Err(warp::reject::custom(MultipleChainIdsError()));
         }
-        if transaction.block_number != first_block_number {
+        if transaction.block_number != first_block_number
+            || transaction.block_number.unwrap() != evm.get_block().as_u64()
+        {
             let tx_block = transaction
                 .block_number
                 .expect("Transaction has no block number");

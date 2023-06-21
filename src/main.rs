@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    env,
-    sync::{Arc},
-};
+use std::{collections::HashMap, env, sync::Arc};
 
 use tokio::sync::Mutex;
 

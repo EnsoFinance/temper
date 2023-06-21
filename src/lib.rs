@@ -1,10 +1,7 @@
 use evm::Evm;
 use serde::de::DeserializeOwned;
 use simulation::{SimulationRequest, StatefulSimulationRequest};
-use std::{
-    collections::HashMap,
-    sync::{Arc},
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 use warp::{Filter, Rejection, Reply};
 
@@ -68,9 +65,7 @@ pub fn simulate_stateful_new(
 pub fn simulate_stateful(
     state: Arc<SharedSimulationState>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    warp::path!("simulate-stateful")
-        .and(warp::path::param::<u32>())
-        .and(warp::path::end())
+    warp::path!("simulate-stateful" / u32)
         .and(warp::post())
         .and(json_body())
         .and(with_state(state))
