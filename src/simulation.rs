@@ -1,12 +1,15 @@
 use std::str::FromStr;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use dashmap::mapref::one::RefMut;
 use ethers::abi::{Address, Uint};
 use ethers::core::types::Log;
 use ethers::types::Bytes;
 use foundry_evm::CallKind;
 use revm::interpreter::InstructionResult;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use warp::reject::custom;
 use warp::reply::Json;
 use warp::Rejection;
@@ -242,11 +245,7 @@ pub async fn simulate_stateful_new(
     config: Config,
     state: Arc<SharedSimulationState>,
 ) -> Result<Json, Rejection> {
-    let new_id = {
-        let mut id = state.stateful_simulation_id.lock().await;
-        *id += 1;
-        *id
-    };
+    let new_id = state.stateful_simulation_id.fetch_add(1, Ordering::SeqCst) + 1;
 
     let fork_url = config
         .fork_url
@@ -260,7 +259,7 @@ pub async fn simulate_stateful_new(
         config.etherscan_key,
     );
 
-    state.evms.lock().await.insert(new_id, evm);
+    state.evms.insert(new_id, Arc::new(Mutex::new(evm)));
 
     let response = StatefulSimulationResponse {
         stateful_simulation_id: new_id,
@@ -279,11 +278,15 @@ pub async fn simulate_stateful(
 
     let mut response = Vec::with_capacity(transactions.len());
 
-    // Lock the hashmap once, for the entire duration of the function.
-    let mut evms = state.evms.lock().await;
+    // Get a mutable reference to the EVM here.
+    let evm_ref_mut: RefMut<'_, u32, Arc<Mutex<Evm>>> = state
+        .evms
+        .get_mut(&param)
+        .ok_or_else(warp::reject::not_found)?;
 
-    // Get the EVM here.
-    let evm = evms.get_mut(&param).ok_or_else(warp::reject::not_found)?;
+    // Dereference to obtain the EVM.
+    let evm = evm_ref_mut.value();
+    let mut evm = evm.lock().await;
 
     if evm.get_chain_id() != Uint::from(first_chain_id) {
         return Err(warp::reject::custom(IncorrectChainIdError()));
@@ -306,11 +309,12 @@ pub async fn simulate_stateful(
             evm.set_block(tx_block)
                 .await
                 .expect("Failed to set block number");
-            evm.set_block_timestamp(evm.get_block_timestamp().as_u64() + 12)
+            let block_timestamp = evm.get_block_timestamp().as_u64();
+            evm.set_block_timestamp(block_timestamp + 12)
                 .await
                 .expect("Failed to set block timestamp");
         }
-        response.push(run(evm, transaction, true).await?);
+        response.push(run(&mut evm, transaction, true).await?);
     }
 
     Ok(warp::reply::json(&response))

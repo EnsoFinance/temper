@@ -1,7 +1,10 @@
-use std::{collections::HashMap, fs::File, sync::Arc};
+use std::{
+    fs::File,
+    sync::{atomic::AtomicU32, Arc},
+};
 
+use dashmap::DashMap;
 use ethers::types::U256;
-use tokio::sync::Mutex;
 use transaction_simulator::{
     config::config,
     errors::{handle_rejection, ErrorMessage},
@@ -14,8 +17,8 @@ use warp::Filter;
 fn filter() -> impl Filter<Extract = (impl warp::Reply,), Error = std::convert::Infallible> + Clone
 {
     let shared_state = Arc::new(SharedSimulationState {
-        stateful_simulation_id: Arc::new(Mutex::new(0)),
-        evms: Arc::new(Mutex::new(HashMap::new())),
+        stateful_simulation_id: AtomicU32::new(0),
+        evms: Arc::new(DashMap::new()),
     });
 
     warp::any()

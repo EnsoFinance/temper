@@ -1,6 +1,9 @@
-use std::{collections::HashMap, env, sync::Arc};
+use std::{
+    env,
+    sync::{atomic::AtomicU32, Arc},
+};
 
-use tokio::sync::Mutex;
+use dashmap::DashMap;
 
 use transaction_simulator::{
     config::config, errors::handle_rejection, simulate_routes, SharedSimulationState,
@@ -34,8 +37,8 @@ async fn main() {
     };
 
     let shared_state = Arc::new(SharedSimulationState {
-        stateful_simulation_id: Arc::new(Mutex::new(0)),
-        evms: Arc::new(Mutex::new(HashMap::new())),
+        stateful_simulation_id: AtomicU32::new(0),
+        evms: Arc::new(DashMap::new()),
     });
 
     let routes = api_base

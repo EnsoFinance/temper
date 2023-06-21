@@ -1,7 +1,8 @@
+use dashmap::DashMap;
 use evm::Evm;
 use serde::de::DeserializeOwned;
 use simulation::{SimulationRequest, StatefulSimulationRequest};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::{atomic::AtomicU32, Arc};
 use tokio::sync::Mutex;
 use warp::{Filter, Rejection, Reply};
 
@@ -14,8 +15,8 @@ pub mod evm;
 pub mod simulation;
 
 pub struct SharedSimulationState {
-    pub stateful_simulation_id: Arc<Mutex<u32>>,
-    pub evms: Arc<Mutex<HashMap<u32, Evm>>>,
+    pub stateful_simulation_id: AtomicU32,
+    pub evms: Arc<DashMap<u32, Arc<Mutex<Evm>>>>,
 }
 
 pub fn simulate_routes(
