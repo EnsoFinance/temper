@@ -1,7 +1,4 @@
-use std::{
-    env,
-    sync::{atomic::AtomicU32, Arc},
-};
+use std::{env, sync::Arc};
 
 use dashmap::DashMap;
 
@@ -37,7 +34,6 @@ async fn main() {
     };
 
     let shared_state = Arc::new(SharedSimulationState {
-        stateful_simulation_id: AtomicU32::new(0),
         evms: Arc::new(DashMap::new()),
     });
 

@@ -1,9 +1,10 @@
 use dashmap::DashMap;
 use evm::Evm;
 use serde::de::DeserializeOwned;
-use simulation::{SimulationRequest, StatefulSimulationRequest};
-use std::sync::{atomic::AtomicU32, Arc};
+use simulation::SimulationRequest;
+use std::sync::Arc;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 use warp::{Filter, Rejection, Reply};
 
 pub mod config;
@@ -15,8 +16,7 @@ pub mod evm;
 pub mod simulation;
 
 pub struct SharedSimulationState {
-    pub stateful_simulation_id: AtomicU32,
-    pub evms: Arc<DashMap<u32, Arc<Mutex<Evm>>>>,
+    pub evms: Arc<DashMap<Uuid, Arc<Mutex<Evm>>>>,
 }
 
 pub fn simulate_routes(
@@ -25,8 +25,7 @@ pub fn simulate_routes(
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     simulate(config.clone())
         .or(simulate_bundle(config.clone()))
-        .or(simulate_stateful_new(config, state.clone()))
-        .or(simulate_stateful(state))
+        .or(simulate_stateful(config, state))
 }
 
 /// POST /simulate
@@ -49,27 +48,16 @@ pub fn simulate_bundle(
         .and_then(simulation::simulate_bundle)
 }
 
-/// POST /simulate-stateful-new
-pub fn simulate_stateful_new(
+/// POST /simulate-stateful
+pub fn simulate_stateful(
     config: Config,
     state: Arc<SharedSimulationState>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    warp::path!("simulate-stateful-new")
-        .and(warp::post())
-        .and(json_body::<StatefulSimulationRequest>())
-        .and(with_config(config))
-        .and(with_state(state))
-        .and_then(simulation::simulate_stateful_new)
-}
-
-/// POST /simulate-stateful/{simulation_id}
-pub fn simulate_stateful(
-    state: Arc<SharedSimulationState>,
-) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    warp::path!("simulate-stateful" / u32)
+    warp::path!("simulate-stateful")
         .and(warp::post())
         .and(json_body())
         .and(with_state(state))
+        .and(with_config(config))
         .and_then(simulation::simulate_stateful)
 }
 
