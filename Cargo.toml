@@ -28,11 +28,13 @@ ethers = { git = "https://github.com/gakonst/ethers-rs" }
 foundry-config = { git = "https://github.com/foundry-rs/foundry", rev = "12ea9f6" }
 foundry-evm = { git = "https://github.com/foundry-rs/foundry", rev = "12ea9f6" }
 
-# env, logs, errors
+# env, logs, errors, uuid
 dotenvy = "0.15"
 log = "0.4"
 pretty_env_logger = "0.4"
 eyre = "0.6"
+dashmap = "5.4.0"
+uuid = { version = "1.3.4", features = ["v4", "fast-rng", "serde"] }
 
 [dev-dependencies]
 temp-env = { version = "0.3.4", features = ["async_closure"] }

@@ -1,11 +1,15 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
+use dashmap::mapref::one::RefMut;
 use ethers::abi::{Address, Uint};
 use ethers::core::types::Log;
 use ethers::types::Bytes;
 use foundry_evm::CallKind;
 use revm::interpreter::InstructionResult;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
+use uuid::Uuid;
 use warp::reject::custom;
 use warp::reply::Json;
 use warp::Rejection;
@@ -14,6 +18,7 @@ use crate::errors::{
     FromDecStrError, FromHexError, IncorrectChainIdError, InvalidBlockNumbersError,
     MultipleChainIdsError, NoURLForChainIdError,
 };
+use crate::SharedSimulationState;
 
 use super::config::Config;
 use super::evm::Evm;
@@ -51,6 +56,22 @@ pub struct SimulationResponse {
     pub exit_reason: InstructionResult,
     #[serde(rename = "returnData")]
     pub return_data: Bytes,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StatefulSimulationRequest {
+    #[serde(rename = "chainId")]
+    pub chain_id: u64,
+    #[serde(rename = "gasLimit")]
+    pub gas_limit: u64,
+    #[serde(rename = "blockNumber")]
+    pub block_number: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StatefulSimulationResponse {
+    #[serde(rename = "statefulSimulationId")]
+    pub stateful_simulation_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -210,6 +231,84 @@ pub async fn simulate_bundle(
                 .await
                 .expect("Failed to set block number");
             evm.set_block_timestamp(evm.get_block_timestamp().as_u64() + 12)
+                .await
+                .expect("Failed to set block timestamp");
+        }
+        response.push(run(&mut evm, transaction, true).await?);
+    }
+
+    Ok(warp::reply::json(&response))
+}
+
+pub async fn simulate_stateful_new(
+    stateful_simulation_request: StatefulSimulationRequest,
+    config: Config,
+    state: Arc<SharedSimulationState>,
+) -> Result<Json, Rejection> {
+    let fork_url = config
+        .fork_url
+        .unwrap_or(chain_id_to_fork_url(stateful_simulation_request.chain_id)?);
+    let evm = Evm::new(
+        None,
+        fork_url,
+        stateful_simulation_request.block_number,
+        stateful_simulation_request.gas_limit,
+        true,
+        config.etherscan_key,
+    );
+    let new_id = Uuid::new_v4();
+    state.evms.insert(new_id, Arc::new(Mutex::new(evm)));
+
+    let response = StatefulSimulationResponse {
+        stateful_simulation_id: new_id,
+    };
+
+    Ok(warp::reply::json(&response))
+}
+
+pub async fn simulate_stateful(
+    param: Uuid,
+    transactions: Vec<SimulationRequest>,
+    state: Arc<SharedSimulationState>,
+) -> Result<Json, Rejection> {
+    let first_chain_id = transactions[0].chain_id;
+    let first_block_number = transactions[0].block_number;
+
+    let mut response = Vec::with_capacity(transactions.len());
+
+    // Get a mutable reference to the EVM here.
+    let evm_ref_mut: RefMut<'_, Uuid, Arc<Mutex<Evm>>> = state
+        .evms
+        .get_mut(&param)
+        .ok_or_else(warp::reject::not_found)?;
+
+    // Dereference to obtain the EVM.
+    let evm = evm_ref_mut.value();
+    let mut evm = evm.lock().await;
+
+    if evm.get_chain_id() != Uint::from(first_chain_id) {
+        return Err(warp::reject::custom(IncorrectChainIdError()));
+    }
+
+    for transaction in transactions {
+        if transaction.chain_id != first_chain_id {
+            return Err(warp::reject::custom(MultipleChainIdsError()));
+        }
+        if transaction.block_number != first_block_number
+            || transaction.block_number.unwrap() != evm.get_block().as_u64()
+        {
+            let tx_block = transaction
+                .block_number
+                .expect("Transaction has no block number");
+            if transaction.block_number < first_block_number || tx_block < evm.get_block().as_u64()
+            {
+                return Err(warp::reject::custom(InvalidBlockNumbersError()));
+            }
+            evm.set_block(tx_block)
+                .await
+                .expect("Failed to set block number");
+            let block_timestamp = evm.get_block_timestamp().as_u64();
+            evm.set_block_timestamp(block_timestamp + 12)
                 .await
                 .expect("Failed to set block timestamp");
         }
