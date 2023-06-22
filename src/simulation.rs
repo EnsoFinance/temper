@@ -10,6 +10,7 @@ use foundry_evm::CallKind;
 use revm::interpreter::InstructionResult;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
+use uuid::Uuid;
 use warp::reject::custom;
 use warp::reply::Json;
 use warp::Rejection;
@@ -71,7 +72,7 @@ pub struct StatefulSimulationRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StatefulSimulationResponse {
     #[serde(rename = "statefulSimulationId")]
-    pub stateful_simulation_id: u32,
+    pub stateful_simulation_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
