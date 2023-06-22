@@ -86,7 +86,7 @@ pub struct CallTrace {
 fn chain_id_to_fork_url(chain_id: u64) -> Result<String, Rejection> {
     match chain_id {
         // ethereum
-        1 => Ok("https://eth-mainnet.g.alchemy.com/v2/demo".to_string()),
+        1 => Ok("https://eth.llamarpc.com".to_string()),
         5 => Ok("https://eth-goerli.g.alchemy.com/v2/demo".to_string()),
         11155111 => Ok("https://eth-sepolia.g.alchemy.com/v2/demo".to_string()),
         // polygon

@@ -24,6 +24,11 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
+
+      # cache rpc requests
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -31,6 +36,7 @@ jobs:
           target: ${{ matrix.job.target }}
           profile: minimal
           override: true
+
       - uses: Swatinem/rust-cache@v1
         with:
           cache-on-failure: true
