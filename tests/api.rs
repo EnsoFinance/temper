@@ -13,7 +13,7 @@ use warp::Filter;
 
 fn filter() -> impl Filter<Extract = (impl warp::Reply,), Error = std::convert::Infallible> + Clone
 {
-    let shared_state = Arc::new(SharedSimulationState {
+    let shared_state: Arc<SharedSimulationState> = Arc::new(SharedSimulationState {
         evms: Arc::new(DashMap::new()),
     });
 
@@ -535,41 +535,70 @@ async fn post_simulate_bundle_multiple_block_numbers_invalid_order() {
 async fn post_simulate_stateful() {
     let filter = filter();
 
+    let new_simulation_req = serde_json::json!({
+        "chainId": 1,
+        "gasLimit": 5000000,
+        "blockNumber": 16968594,
+    });
+
+    let res = warp::test::request()
+        .method("POST")
+        .path("/simulate-stateful")
+        .json(&new_simulation_req)
+        .reply(&filter)
+        .await;
+
+    assert_eq!(res.status(), 200);
+
+    let simulation_response_body: StatefulSimulationResponse =
+        serde_json::from_slice(&res.body()).unwrap();
+    assert_eq!(
+        simulation_response_body
+            .stateful_simulation_id
+            .to_string()
+            .len(),
+        36
+    );
+
     let first_request = serde_json::json!([{
       "chainId": 1,
       "from": "0x93621dca56fe26cdee86e4f6b18e116e9758ff11",
       "to": "0xdac17f958d2ee523a2206206994597c13d831ec7",
       "data": "0x095ea7b300000000000000000000000060f727bdead2ce49b00f2a2133fc707b931d130b0000000000000000000000000000000000000000000000000000000000989680",
       "gasLimit": 5000000,
-      "blockNumber": 16968595
+      "blockNumber": 16968595,
     }, {
       "chainId": 1,
       "from": "0x93621dca56fe26cdee86e4f6b18e116e9758ff11",
       "to": "0x60f727bdead2ce49b00f2a2133fc707b931d130b",
       "data": "0x8fd8d1bbffc9011b73f477fef5d4ebdd0903025283464275113654045eef0ce1ba22ccea000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000006f8b2cb4f0100ffffffffff057e7d64d987cab6eed08a191c4c2459daf2f8ed0b095ea7b3010102ffffffffffdac17f958d2ee523a2206206994597c13d831ec719198595a183ffffffffffffdef1c0ded9bec7f1a1670819833240f027b25efff8b2cb4f0100ffffffffff007e7d64d987cab6eed08a191c4c2459daf2f8ed0bb67d77c5010005ffffffff00742f2c5d96c0858d00860039c22d2805bed420e8a1903eab030004ffffffffffae7ab96520de3a18e5e111b5eaab095312d7fe84000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000002e00000000000000000000000000000000000000000000000000000000000000320000000000000000000000000000000000000000000000000000000000000002000000000000000000000000060f727bdead2ce49b00f2a2133fc707b931d130b0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000def1c0ded9bec7f1a1670819833240f027b25eff000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000009896800000000000000000000000000000000000000000000000000000000000000128d9627aa40000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000098968000000000000000000000000000000000000000000000000000130e53e715e8a500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000dac17f958d2ee523a2206206994597c13d831ec7000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee869584cd00000000000000000000000010000000000000000000000000000000000000110000000000000000000000000000000000000000000000cef2d4383a642acb0d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
       "gasLimit": 5000000,
-      "blockNumber": 16968596
+      "blockNumber": 16968596,
     }]);
 
     let res = warp::test::request()
         .method("POST")
-        .path("/simulate-stateful")
+        .path(
+            format!(
+                "/simulate-stateful/{}",
+                simulation_response_body.stateful_simulation_id
+            )
+            .as_str(),
+        )
         .json(&first_request)
         .reply(&filter)
         .await;
 
     assert_eq!(res.status(), 200);
 
-    let body: StatefulSimulationResponse = serde_json::from_slice(&res.body()).unwrap();
+    let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
 
-    assert_eq!(body.stateful_simulation_id.to_string().len(), 36);
+    assert_eq!(body.len(), 2);
+    assert_eq!(body[0].success, true);
+    assert_eq!(body[1].success, false);
 
-    assert_eq!(body.results.len(), 2);
-    assert_eq!(body.results[0].success, true);
-    assert_eq!(body.results[1].success, false);
-
-    assert_eq!(body.results[0].block_number, 16968595);
-    assert_eq!(body.results[1].block_number, 16968596);
+    assert_eq!(body[0].block_number, 16968595);
+    assert_eq!(body[1].block_number, 16968596);
 
     let second_request = serde_json::json!([{
       "chainId": 1,
@@ -578,7 +607,6 @@ async fn post_simulate_stateful() {
       "data": "0x796b89b9",
       "gasLimit": 5000000,
       "blockNumber": 16968597,
-      "statefulSimulationId": body.stateful_simulation_id.to_string(),
     },
     {
       "chainId": 1,
@@ -587,31 +615,37 @@ async fn post_simulate_stateful() {
       "data": "0x796b89b9",
       "gasLimit": 5000000,
       "blockNumber": 16968598,
-      "statefulSimulationId": body.stateful_simulation_id.to_string(),
     }]);
 
     let res = warp::test::request()
         .method("POST")
-        .path("/simulate-stateful")
+        .path(
+            format!(
+                "/simulate-stateful/{}",
+                simulation_response_body.stateful_simulation_id
+            )
+            .as_str(),
+        )
         .json(&second_request)
         .reply(&filter)
         .await;
+
     assert_eq!(res.status(), 200);
 
-    let body: StatefulSimulationResponse = serde_json::from_slice(&res.body()).unwrap();
-    assert_eq!(body.results.len(), 2);
+    let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
+    assert_eq!(body.len(), 2);
 
-    assert_eq!(body.results[0].success, true);
-    assert_eq!(body.results[1].success, true);
-    assert_eq!(body.results[0].block_number, 16968597);
-    assert_eq!(body.results[1].block_number, 16968598);
+    assert_eq!(body[0].success, true);
+    assert_eq!(body[1].success, true);
+    assert_eq!(body[0].block_number, 16968597);
+    assert_eq!(body[1].block_number, 16968598);
 
     assert_eq!(
-        U256::from(body.results[0].return_data.0.to_vec().as_slice()),
+        U256::from(body[0].return_data.0.to_vec().as_slice()),
         U256::from(1680526127)
     );
     assert_eq!(
-        U256::from(body.results[1].return_data.0.to_vec().as_slice()),
+        U256::from(body[1].return_data.0.to_vec().as_slice()),
         U256::from(1680526127 + 12)
     );
 }

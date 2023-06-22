@@ -37,8 +37,6 @@ pub struct SimulationRequest {
     pub block_number: Option<u64>,
     #[serde(rename = "formatTrace")]
     pub format_trace: Option<bool>,
-    #[serde(rename = "statefulSimulationId")]
-    pub stateful_simulation_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -74,7 +72,6 @@ pub struct StatefulSimulationRequest {
 pub struct StatefulSimulationResponse {
     #[serde(rename = "statefulSimulationId")]
     pub stateful_simulation_id: Uuid,
-    pub results: Vec<SimulationResponse>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -243,38 +240,46 @@ pub async fn simulate_bundle(
     Ok(warp::reply::json(&response))
 }
 
+pub async fn simulate_stateful_new(
+    stateful_simulation_request: StatefulSimulationRequest,
+    config: Config,
+    state: Arc<SharedSimulationState>,
+) -> Result<Json, Rejection> {
+    let fork_url = config
+        .fork_url
+        .unwrap_or(chain_id_to_fork_url(stateful_simulation_request.chain_id)?);
+    let evm = Evm::new(
+        None,
+        fork_url,
+        stateful_simulation_request.block_number,
+        stateful_simulation_request.gas_limit,
+        true,
+        config.etherscan_key,
+    );
+    let new_id = Uuid::new_v4();
+    state.evms.insert(new_id, Arc::new(Mutex::new(evm)));
+
+    let response = StatefulSimulationResponse {
+        stateful_simulation_id: new_id,
+    };
+
+    Ok(warp::reply::json(&response))
+}
+
 pub async fn simulate_stateful(
+    param: Uuid,
     transactions: Vec<SimulationRequest>,
     state: Arc<SharedSimulationState>,
-    config: Config,
 ) -> Result<Json, Rejection> {
-    let new_evm_id = Uuid::new_v4();
-
-    if transactions[0].stateful_simulation_id.is_none() {
-        let fork_url = config
-            .fork_url
-            .unwrap_or(chain_id_to_fork_url(transactions[0].chain_id)?);
-        let evm = Evm::new(
-            None,
-            fork_url,
-            transactions[0].block_number,
-            transactions[0].gas_limit,
-            true,
-            config.etherscan_key,
-        );
-
-        state.evms.insert(new_evm_id, Arc::new(Mutex::new(evm)));
-    }
-
     let first_chain_id = transactions[0].chain_id;
     let first_block_number = transactions[0].block_number;
-    let evm_id = &transactions[0].stateful_simulation_id.unwrap_or(new_evm_id);
-    let mut tx_response = Vec::with_capacity(transactions.len());
+
+    let mut response = Vec::with_capacity(transactions.len());
 
     // Get a mutable reference to the EVM here.
     let evm_ref_mut: RefMut<'_, Uuid, Arc<Mutex<Evm>>> = state
         .evms
-        .get_mut(evm_id)
+        .get_mut(&param)
         .ok_or_else(warp::reject::not_found)?;
 
     // Dereference to obtain the EVM.
@@ -307,13 +312,8 @@ pub async fn simulate_stateful(
                 .await
                 .expect("Failed to set block timestamp");
         }
-        tx_response.push(run(&mut evm, transaction, true).await?);
+        response.push(run(&mut evm, transaction, true).await?);
     }
-
-    let response = StatefulSimulationResponse {
-        stateful_simulation_id: *evm_id,
-        results: tx_response,
-    };
 
     Ok(warp::reply::json(&response))
 }

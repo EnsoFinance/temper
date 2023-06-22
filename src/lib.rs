@@ -1,7 +1,7 @@
 use dashmap::DashMap;
 use evm::Evm;
 use serde::de::DeserializeOwned;
-use simulation::SimulationRequest;
+use simulation::{SimulationRequest, StatefulSimulationRequest};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -25,7 +25,8 @@ pub fn simulate_routes(
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     simulate(config.clone())
         .or(simulate_bundle(config.clone()))
-        .or(simulate_stateful(config, state))
+        .or(simulate_stateful_new(config, state.clone()))
+        .or(simulate_stateful(state))
 }
 
 /// POST /simulate
@@ -49,15 +50,26 @@ pub fn simulate_bundle(
 }
 
 /// POST /simulate-stateful
-pub fn simulate_stateful(
+pub fn simulate_stateful_new(
     config: Config,
     state: Arc<SharedSimulationState>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!("simulate-stateful")
         .and(warp::post())
+        .and(json_body::<StatefulSimulationRequest>())
+        .and(with_config(config))
+        .and(with_state(state))
+        .and_then(simulation::simulate_stateful_new)
+}
+
+/// POST /simulate-stateful/{statefulSimulationId}
+pub fn simulate_stateful(
+    state: Arc<SharedSimulationState>,
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    warp::path!("simulate-stateful" / Uuid)
+        .and(warp::post())
         .and(json_body())
         .and(with_state(state))
-        .and(with_config(config))
         .and_then(simulation::simulate_stateful)
 }
 
