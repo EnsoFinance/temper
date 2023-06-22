@@ -34,15 +34,7 @@ log = "0.4"
 pretty_env_logger = "0.4"
 eyre = "0.6"
 dashmap = "5.4.0"
-
-[dependencies.uuid]
-version = "1.3.4"
-features = [
-    "v4",                # Lets you generate random UUIDs
-    "fast-rng",          # Use a faster (but still sufficiently random) RNG
-    "serde"
-]
-
+uuid = { version = "1.3.4", features = ["v4", "fast-rng", "serde"] }
 
 [dev-dependencies]
 temp-env = { version = "0.3.4", features = ["async_closure"] }
