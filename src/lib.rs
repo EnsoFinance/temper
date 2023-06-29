@@ -63,7 +63,7 @@ pub fn simulate_stateful_new(
         .and_then(simulation::simulate_stateful_new)
 }
 
-/// POST /simulate-stateful/{statefulSimulationId}
+/// DELETE /simulate-stateful/{statefulSimulationId}
 pub fn simulate_stateful_end(
     state: Arc<SharedSimulationState>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
