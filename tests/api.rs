@@ -6,7 +6,10 @@ use transaction_simulator::{
     config::config,
     errors::{handle_rejection, ErrorMessage},
     simulate_routes,
-    simulation::{SimulationRequest, SimulationResponse, StatefulSimulationResponse},
+    simulation::{
+        SimulationRequest, SimulationResponse, StatefulSimulationEndResponse,
+        StatefulSimulationResponse,
+    },
     SharedSimulationState,
 };
 use warp::Filter;
@@ -648,4 +651,19 @@ async fn post_simulate_stateful() {
         U256::from(body[1].return_data.0.to_vec().as_slice()),
         U256::from(1680526127 + 12)
     );
+
+    let res = warp::test::request()
+        .method("DELETE")
+        .path(
+            format!(
+                "/simulate-stateful/{}",
+                simulation_response_body.stateful_simulation_id
+            )
+            .as_str(),
+        )
+        .reply(&filter)
+        .await;
+    assert_eq!(res.status(), 200);
+    let body: StatefulSimulationEndResponse = serde_json::from_slice(&res.body()).unwrap();
+    assert_eq!(body.success, true);
 }

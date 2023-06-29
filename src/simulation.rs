@@ -75,6 +75,11 @@ pub struct StatefulSimulationResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StatefulSimulationEndResponse {
+    pub success: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CallTrace {
     #[serde(rename = "callType")]
     pub call_type: CallKind,
@@ -264,6 +269,20 @@ pub async fn simulate_stateful_new(
     };
 
     Ok(warp::reply::json(&response))
+}
+
+pub async fn simulate_stateful_end(
+    param: Uuid,
+    state: Arc<SharedSimulationState>,
+) -> Result<Json, Rejection> {
+    if state.evms.contains_key(&param) {
+        state.evms.remove(&param);
+        let response = StatefulSimulationEndResponse { success: true };
+        Ok(warp::reply::json(&response))
+    } else {
+        let response = StatefulSimulationEndResponse { success: false };
+        Ok(warp::reply::json(&response))
+    }
 }
 
 pub async fn simulate_stateful(
