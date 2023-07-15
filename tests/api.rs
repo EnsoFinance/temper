@@ -666,4 +666,11 @@ async fn post_simulate_stateful() {
     assert_eq!(res.status(), 200);
     let body: StatefulSimulationEndResponse = serde_json::from_slice(&res.body()).unwrap();
     assert_eq!(body.success, true);
+
+    let res: warp::hyper::Response<bytes::Bytes> = warp::test::request()
+        .method("DELETE")
+        .path("/simulate-stateful/6f676bc7-3416-4647-99ee-e1be90fb6d2e")
+        .reply(&filter)
+        .await;
+    assert_eq!(res.status(), 404);
 }

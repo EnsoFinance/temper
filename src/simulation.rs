@@ -280,8 +280,8 @@ pub async fn simulate_stateful_end(
         let response = StatefulSimulationEndResponse { success: true };
         Ok(warp::reply::json(&response))
     } else {
-        let response = StatefulSimulationEndResponse { success: false };
-        Ok(warp::reply::json(&response))
+        println!("Rejecting as not found!");
+        return Err(warp::reject::not_found());
     }
 }
 
