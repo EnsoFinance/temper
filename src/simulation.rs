@@ -16,7 +16,7 @@ use warp::Rejection;
 
 use crate::errors::{
     FromDecStrError, FromHexError, IncorrectChainIdError, InvalidBlockNumbersError,
-    MultipleChainIdsError, NoURLForChainIdError,
+    MultipleChainIdsError, NoURLForChainIdError, StateNotFound,
 };
 use crate::SharedSimulationState;
 
@@ -280,8 +280,7 @@ pub async fn simulate_stateful_end(
         let response = StatefulSimulationEndResponse { success: true };
         Ok(warp::reply::json(&response))
     } else {
-        println!("Rejecting as not found!");
-        return Err(warp::reject::not_found());
+        Err(warp::reject::custom(StateNotFound()))
     }
 }
 
