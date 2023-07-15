@@ -26,6 +26,7 @@ pub fn simulate_routes(
     simulate(config.clone())
         .or(simulate_bundle(config.clone()))
         .or(simulate_stateful_new(config, state.clone()))
+        .or(simulate_stateful_end(state.clone()))
         .or(simulate_stateful(state))
 }
 
@@ -60,6 +61,16 @@ pub fn simulate_stateful_new(
         .and(with_config(config))
         .and(with_state(state))
         .and_then(simulation::simulate_stateful_new)
+}
+
+/// DELETE /simulate-stateful/{statefulSimulationId}
+pub fn simulate_stateful_end(
+    state: Arc<SharedSimulationState>,
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    warp::path!("simulate-stateful" / Uuid)
+        .and(warp::delete())
+        .and(with_state(state))
+        .and_then(simulation::simulate_stateful_end)
 }
 
 /// POST /simulate-stateful/{statefulSimulationId}

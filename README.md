@@ -146,11 +146,26 @@ Example response:
   "exitReason": "Return"
 }]
 ```
-
 Notes:
 
 - `chainId` must be the same in all transactions.
 - `blockNumber` can be included and incremented when a multi-block simulation is required, or omitted in all transactions to use latest.
+
+
+### DELETE /api/v1/simulate-stateful/{statefulSimulationId}
+
+Ends a current stateful simulation, freeing associated memory.
+
+[See the full request and response types below.](#types)
+
+Example response:
+
+```json
+{
+  "success": true
+}
+```
+
 
 
 ### Authentication

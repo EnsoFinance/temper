@@ -46,6 +46,11 @@ pub struct InvalidBlockNumbersError();
 impl Reject for InvalidBlockNumbersError {}
 
 #[derive(Debug)]
+pub struct StateNotFound();
+
+impl Reject for StateNotFound {}
+
+#[derive(Debug)]
 pub struct EvmError(pub Report);
 
 impl Reject for EvmError {}
@@ -53,10 +58,13 @@ impl Reject for EvmError {}
 pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     let code;
     let message: String;
-
+    println!("Handling rejection: {:?}", err);
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
         message = "NOT_FOUND".to_string();
+    } else if let Some(_e) = err.find::<StateNotFound>() {
+        code = StatusCode::NOT_FOUND;
+        message = "STATE_NOT_FOUND".to_string();
     } else if let Some(FromHexError) = err.find() {
         code = StatusCode::BAD_REQUEST;
         message = "FROM_HEX_ERROR".to_string();

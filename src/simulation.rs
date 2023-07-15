@@ -16,7 +16,7 @@ use warp::Rejection;
 
 use crate::errors::{
     FromDecStrError, FromHexError, IncorrectChainIdError, InvalidBlockNumbersError,
-    MultipleChainIdsError, NoURLForChainIdError,
+    MultipleChainIdsError, NoURLForChainIdError, StateNotFound,
 };
 use crate::SharedSimulationState;
 
@@ -72,6 +72,11 @@ pub struct StatefulSimulationRequest {
 pub struct StatefulSimulationResponse {
     #[serde(rename = "statefulSimulationId")]
     pub stateful_simulation_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StatefulSimulationEndResponse {
+    pub success: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -264,6 +269,19 @@ pub async fn simulate_stateful_new(
     };
 
     Ok(warp::reply::json(&response))
+}
+
+pub async fn simulate_stateful_end(
+    param: Uuid,
+    state: Arc<SharedSimulationState>,
+) -> Result<Json, Rejection> {
+    if state.evms.contains_key(&param) {
+        state.evms.remove(&param);
+        let response = StatefulSimulationEndResponse { success: true };
+        Ok(warp::reply::json(&response))
+    } else {
+        Err(warp::reject::custom(StateNotFound()))
+    }
 }
 
 pub async fn simulate_stateful(
