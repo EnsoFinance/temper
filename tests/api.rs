@@ -477,13 +477,13 @@ async fn post_simulate_bundle_multiple_block_numbers() {
 
     assert_eq!(res.status(), 200);
 
-    let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
+    let body: Vec<SimulationResponse> = serde_json::from_slice(res.body()).unwrap();
 
     assert_eq!(body.len(), 4);
-    assert_eq!(body[0].success, true);
-    assert_eq!(body[1].success, false);
-    assert_eq!(body[2].success, true);
-    assert_eq!(body[3].success, true);
+    assert!(body[0].success);
+    assert!(!body[1].success);
+    assert!(body[2].success);
+    assert!(body[3].success);
 
     assert_eq!(body[0].block_number, 16968595);
     assert_eq!(body[1].block_number, 16968596);
@@ -554,7 +554,7 @@ async fn post_simulate_stateful() {
     assert_eq!(res.status(), 200);
 
     let simulation_response_body: StatefulSimulationResponse =
-        serde_json::from_slice(&res.body()).unwrap();
+        serde_json::from_slice(res.body()).unwrap();
     assert_eq!(
         simulation_response_body
             .stateful_simulation_id
@@ -594,11 +594,11 @@ async fn post_simulate_stateful() {
 
     assert_eq!(res.status(), 200);
 
-    let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
+    let body: Vec<SimulationResponse> = serde_json::from_slice(res.body()).unwrap();
 
     assert_eq!(body.len(), 2);
-    assert_eq!(body[0].success, true);
-    assert_eq!(body[1].success, false);
+    assert!(body[0].success);
+    assert!(!body[1].success);
 
     assert_eq!(body[0].block_number, 16968595);
     assert_eq!(body[1].block_number, 16968596);
@@ -635,11 +635,11 @@ async fn post_simulate_stateful() {
 
     assert_eq!(res.status(), 200);
 
-    let body: Vec<SimulationResponse> = serde_json::from_slice(&res.body()).unwrap();
+    let body: Vec<SimulationResponse> = serde_json::from_slice(res.body()).unwrap();
     assert_eq!(body.len(), 2);
 
-    assert_eq!(body[0].success, true);
-    assert_eq!(body[1].success, true);
+    assert!(body[0].success);
+    assert!(body[1].success);
     assert_eq!(body[0].block_number, 16968597);
     assert_eq!(body[1].block_number, 16968598);
 
@@ -664,8 +664,8 @@ async fn post_simulate_stateful() {
         .reply(&filter)
         .await;
     assert_eq!(res.status(), 200);
-    let body: StatefulSimulationEndResponse = serde_json::from_slice(&res.body()).unwrap();
-    assert_eq!(body.success, true);
+    let body: StatefulSimulationEndResponse = serde_json::from_slice(res.body()).unwrap();
+    assert!(body.success);
 
     let res = warp::test::request()
         .method("DELETE")
