@@ -5,9 +5,10 @@ use dashmap::mapref::one::RefMut;
 use ethers::abi::{Address, Uint};
 use ethers::core::types::Log;
 use ethers::providers::{Http, Middleware, Provider};
-use ethers::types::{Bytes, H256};
+use ethers::types::{Bytes};
 use foundry_evm::CallKind;
 use revm::interpreter::InstructionResult;
+use revm::primitives::bitvec::macros::internal::funty::Fundamental;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -243,67 +244,61 @@ pub async fn simulate_bundle(
                 .expect("Failed to set block timestamp");
         }
 
-        if transaction.clone().transaction_block_index.is_some()
-        {
-            let provider = Provider::<Http>::try_from(&fork_url);
-            let pre_transactions = provider
-                .unwrap()
-                .get_block_with_txs(
-                    transaction
-                        .clone()
-                        .block_number
-                        .expect("Transaction has no block number"),
-                )
-                .await
-                .unwrap()
-                .unwrap();
-            let relevant_transactions: Vec<_> = pre_transactions
-                .transactions
-                .iter()
-                .map(|x| SimulationRequest {
-                    chain_id: x.chain_id.unwrap().as_u64(),
-                    from: x.from,
-                    to: x.to.unwrap(),
-                    value: Some(x.value.to_string()),
-                    data: Some(x.input.clone()),
-                    gas_limit: x.gas.as_u64(),
-                    block_number: None,
-                    format_trace: None,
-                    transaction_block_index: None,
-                })
-                .collect();
-
-            let transaction_block_index = transaction.clone().transaction_block_index.unwrap();
-            let transactions_before_index = relevant_transactions
-                .iter()
-                .take(transaction_block_index as usize)
-                .collect::<Vec<_>>();
-
-            let transactions_after_index = relevant_transactions.iter().skip(
-                transaction_block_index
-                    .checked_add(1)
-                    .expect("Overflow")
-                    as usize,
-            );
-
-            for before_tx in transactions_before_index {
-                let result = run(&mut evm, before_tx.clone(), true).await;
-                result.expect("Failed to run transactions in block prior to transaction index");
-            }
-
-            response.push(run(&mut evm, transaction, true).await?);
-
-            for after_tx in transactions_after_index {
-                let result = run(&mut evm, after_tx.clone(), true).await;
-                result.expect("Failed to run transactions in block after transaction index");
-            }
-            
+        if transaction.clone().transaction_block_index.is_some() {
+            apply_block_transactions(&fork_url, &transaction, &mut evm, &mut response).await?;
         } else {
             response.push(run(&mut evm, transaction, true).await?);
         }
     }
 
     Ok(warp::reply::json(&response))
+}
+
+async fn apply_block_transactions(fork_url: &String, transaction: &SimulationRequest, evm: &mut Evm, response: &mut Vec<SimulationResponse>) -> Result<(), Rejection> {
+    let provider = Provider::<Http>::try_from(fork_url);
+    let pre_transactions = provider
+        .unwrap()
+        .get_block_with_txs(
+            transaction
+                .clone()
+                .block_number
+                .expect("Transaction has no block number"),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    let relevant_transactions: Vec<_> = pre_transactions
+        .transactions
+        .iter()
+        .map(|x| SimulationRequest {
+            chain_id: x.chain_id.unwrap().as_u64(),
+            from: x.from,
+            to: x.to.unwrap(),
+            value: Some(x.value.to_string()),
+            data: Some(x.input.clone()),
+            gas_limit: x.gas.as_u64(),
+            block_number: None,
+            format_trace: None,
+            transaction_block_index: None,
+        })
+        .collect();
+    let transaction_block_index = transaction.clone().transaction_block_index.unwrap();
+    let transactions_before_index = relevant_transactions
+        .iter()
+        .take(transaction_block_index.as_usize())
+        .collect::<Vec<_>>();
+    let transactions_after_index = relevant_transactions
+        .iter()
+        .skip(transaction_block_index.as_usize());
+    for before_tx in transactions_before_index {
+        let result = run(evm, before_tx.clone(), true).await;
+        result.expect("Failed to run transactions in block prior to transaction index");
+    }
+    response.push(run(evm, transaction.clone(), true).await?);
+    Ok(for after_tx in transactions_after_index {
+        let result = run(evm, after_tx.clone(), true).await;
+        result.expect("Failed to run transactions in block after transaction index");
+    })
 }
 
 pub async fn simulate_stateful_new(
