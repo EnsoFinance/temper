@@ -2,6 +2,7 @@ use ethers::abi::{Address, Uint};
 use ethers::core::types::Log;
 use ethers::types::Bytes;
 use foundry_config::Chain;
+use foundry_evm::executor::backend::DatabaseExt;
 use foundry_evm::executor::{fork::CreateFork, Executor};
 use foundry_evm::executor::{opts::EvmOpts, Backend, ExecutorBuilder};
 use foundry_evm::trace::identifier::{EtherscanIdentifier, SignaturesIdentifier};
@@ -224,5 +225,9 @@ impl Evm {
 
     pub fn get_chain_id(&self) -> Uint {
         self.executor.env().cfg.chain_id.into()
+    }
+
+    pub fn get_fork_url(&self) -> Option<String> {
+        self.executor.backend().active_fork_url().into()
     }
 }

@@ -6,6 +6,7 @@ use ethers::abi::{Address, Uint};
 use ethers::core::types::Log;
 use ethers::providers::{Http, Middleware, Provider};
 use ethers::types::{Bytes};
+use eyre::anyhow;
 use foundry_evm::CallKind;
 use revm::interpreter::InstructionResult;
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
@@ -184,7 +185,7 @@ pub async fn simulate(transaction: SimulationRequest, config: Config) -> Result<
         .unwrap_or(chain_id_to_fork_url(transaction.chain_id)?);
     let mut evm = Evm::new(
         None,
-        fork_url,
+        fork_url.clone(),
         transaction.block_number,
         transaction.gas_limit,
         true,
@@ -195,7 +196,14 @@ pub async fn simulate(transaction: SimulationRequest, config: Config) -> Result<
         return Err(warp::reject::custom(IncorrectChainIdError()));
     }
 
-    let response = run(&mut evm, transaction, false).await?;
+    let response: SimulationResponse = if transaction.transaction_block_index.is_some() {
+        let mut arr_resp = Vec::with_capacity(1);
+        apply_block_transactions(&fork_url, &transaction, &mut evm, &mut arr_resp).await?;
+        arr_resp.pop().ok_or_else(|| anyhow!("No simulated transaction")).unwrap()
+    } else {
+        run(&mut evm, transaction, false).await?
+    };
+
 
     Ok(warp::reply::json(&response))
 }
@@ -386,7 +394,11 @@ pub async fn simulate_stateful(
                 .await
                 .expect("Failed to set block timestamp");
         }
-        response.push(run(&mut evm, transaction, true).await?);
+        if transaction.clone().transaction_block_index.is_some() {
+            apply_block_transactions(&evm.get_fork_url().expect("No fork URL"), &transaction, &mut evm, &mut response).await?;
+        } else {
+            response.push(run(&mut evm, transaction, true).await?);
+        }
     }
 
     Ok(warp::reply::json(&response))
