@@ -5,7 +5,7 @@ use dashmap::mapref::one::RefMut;
 use ethers::abi::{Address, Uint};
 use ethers::core::types::Log;
 use ethers::providers::{Http, Middleware, Provider};
-use ethers::types::{Bytes};
+use ethers::types::Bytes;
 use eyre::anyhow;
 use foundry_evm::CallKind;
 use revm::interpreter::InstructionResult;
@@ -199,11 +199,13 @@ pub async fn simulate(transaction: SimulationRequest, config: Config) -> Result<
     let response: SimulationResponse = if transaction.transaction_block_index.is_some() {
         let mut arr_resp = Vec::with_capacity(1);
         apply_block_transactions(&fork_url, &transaction, &mut evm, &mut arr_resp).await?;
-        arr_resp.pop().ok_or_else(|| anyhow!("No simulated transaction")).unwrap()
+        arr_resp
+            .pop()
+            .ok_or_else(|| anyhow!("No simulated transaction"))
+            .unwrap()
     } else {
         run(&mut evm, transaction, false).await?
     };
-
 
     Ok(warp::reply::json(&response))
 }
@@ -262,7 +264,12 @@ pub async fn simulate_bundle(
     Ok(warp::reply::json(&response))
 }
 
-async fn apply_block_transactions(fork_url: &String, transaction: &SimulationRequest, evm: &mut Evm, response: &mut Vec<SimulationResponse>) -> Result<(), Rejection> {
+async fn apply_block_transactions(
+    fork_url: &String,
+    transaction: &SimulationRequest,
+    evm: &mut Evm,
+    response: &mut Vec<SimulationResponse>,
+) -> Result<(), Rejection> {
     let provider = Provider::<Http>::try_from(fork_url);
     let pre_transactions = provider
         .unwrap()
@@ -395,7 +402,13 @@ pub async fn simulate_stateful(
                 .expect("Failed to set block timestamp");
         }
         if transaction.clone().transaction_block_index.is_some() {
-            apply_block_transactions(&evm.get_fork_url().expect("No fork URL"), &transaction, &mut evm, &mut response).await?;
+            apply_block_transactions(
+                &evm.get_fork_url().expect("No fork URL"),
+                &transaction,
+                &mut evm,
+                &mut response,
+            )
+            .await?;
         } else {
             response.push(run(&mut evm, transaction, true).await?);
         }
