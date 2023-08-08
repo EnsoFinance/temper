@@ -310,10 +310,11 @@ async fn apply_block_transactions(
         result.expect("Failed to run transactions in block prior to transaction index");
     }
     response.push(run(evm, transaction.clone(), true).await?);
-    Ok(for after_tx in transactions_after_index {
+    for after_tx in transactions_after_index {
         let result = run(evm, after_tx.clone(), true).await;
         result.expect("Failed to run transactions in block after transaction index");
-    })
+    }
+    Ok(())
 }
 
 pub async fn simulate_stateful_new(

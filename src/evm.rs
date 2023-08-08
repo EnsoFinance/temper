@@ -228,6 +228,6 @@ impl Evm {
     }
 
     pub fn get_fork_url(&self) -> Option<String> {
-        self.executor.backend().active_fork_url().into()
+        self.executor.backend().active_fork_url()
     }
 }
