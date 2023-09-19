@@ -24,53 +24,43 @@ use super::config::Config;
 use super::evm::Evm;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SimulationRequest {
-    #[serde(rename = "chainId")]
     pub chain_id: u64,
     pub from: Address,
     pub to: Address,
     pub data: Option<Bytes>,
-    #[serde(rename = "gasLimit")]
     pub gas_limit: u64,
     pub value: Option<String>,
-    #[serde(rename = "blockNumber")]
     pub block_number: Option<u64>,
-    #[serde(rename = "formatTrace")]
     pub format_trace: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct SimulationResponse {
-    #[serde(rename = "simulationId")]
     pub simulation_id: u64,
-    #[serde(rename = "gasUsed")]
     pub gas_used: u64,
-    #[serde(rename = "blockNumber")]
     pub block_number: u64,
     pub success: bool,
     pub trace: Vec<CallTrace>,
-    #[serde(rename = "formattedTrace")]
     pub formatted_trace: Option<String>,
     pub logs: Vec<Log>,
-    #[serde(rename = "exitReason")]
     pub exit_reason: InstructionResult,
-    #[serde(rename = "returnData")]
     pub return_data: Bytes,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StatefulSimulationRequest {
-    #[serde(rename = "chainId")]
     pub chain_id: u64,
-    #[serde(rename = "gasLimit")]
     pub gas_limit: u64,
-    #[serde(rename = "blockNumber")]
     pub block_number: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct StatefulSimulationResponse {
-    #[serde(rename = "statefulSimulationId")]
     pub stateful_simulation_id: Uuid,
 }
 
@@ -80,8 +70,8 @@ pub struct StatefulSimulationEndResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct CallTrace {
-    #[serde(rename = "callType")]
     pub call_type: CallKind,
     pub from: Address,
     pub to: Address,
