@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use dashmap::mapref::one::RefMut;
-use ethers::abi::{Address, Uint};
+use ethers::abi::{Address, Hash, Uint};
 use ethers::core::types::Log;
 use ethers::types::Bytes;
 use foundry_evm::CallKind;
@@ -10,14 +11,14 @@ use revm::interpreter::InstructionResult;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use uuid::Uuid;
-use warp::reject::custom;
 use warp::reply::Json;
 use warp::Rejection;
 
 use crate::errors::{
-    FromDecStrError, FromHexError, IncorrectChainIdError, InvalidBlockNumbersError,
-    MultipleChainIdsError, NoURLForChainIdError, StateNotFound,
+    IncorrectChainIdError, InvalidBlockNumbersError, MultipleChainIdsError, NoURLForChainIdError,
+    StateNotFound,
 };
+use crate::evm::StorageOverride;
 use crate::SharedSimulationState;
 
 use super::config::Config;
@@ -31,9 +32,10 @@ pub struct SimulationRequest {
     pub to: Address,
     pub data: Option<Bytes>,
     pub gas_limit: u64,
-    pub value: Option<String>,
+    pub value: Option<PermissiveUint>,
     pub block_number: Option<u64>,
     pub format_trace: Option<bool>,
+    pub state_overrides: Option<HashMap<Address, StateOverride>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -70,12 +72,76 @@ pub struct StatefulSimulationEndResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StateOverride {
+    pub balance: Option<PermissiveUint>,
+    pub nonce: Option<u64>,
+    pub code: Option<Bytes>,
+    #[serde(flatten)]
+    pub state: Option<State>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum State {
+    Full {
+        state: HashMap<Hash, PermissiveUint>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Diff {
+        state_diff: HashMap<Hash, PermissiveUint>,
+    },
+}
+
+impl From<State> for StorageOverride {
+    fn from(value: State) -> Self {
+        let (slots, diff) = match value {
+            State::Full { state } => (state, false),
+            State::Diff { state_diff } => (state_diff, true),
+        };
+
+        StorageOverride {
+            slots: slots
+                .into_iter()
+                .map(|(key, value)| (key, value.into()))
+                .collect(),
+            diff,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CallTrace {
     pub call_type: CallKind,
     pub from: Address,
     pub to: Address,
     pub value: Uint,
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize, PartialEq)]
+#[serde(transparent)]
+pub struct PermissiveUint(pub Uint);
+
+impl From<PermissiveUint> for Uint {
+    fn from(value: PermissiveUint) -> Self {
+        value.0
+    }
+}
+
+impl<'de> Deserialize<'de> for PermissiveUint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // Accept value in hex or decimal formats
+        let value = String::deserialize(deserializer)?;
+        let parsed = if value.starts_with("0x") {
+            Uint::from_str(&value).map_err(serde::de::Error::custom)?
+        } else {
+            Uint::from_dec_str(&value).map_err(serde::de::Error::custom)?
+        };
+        Ok(Self(parsed))
+    }
 }
 
 fn chain_id_to_fork_url(chain_id: u64) -> Result<String, Rejection> {
@@ -113,22 +179,21 @@ async fn run(
     transaction: SimulationRequest,
     commit: bool,
 ) -> Result<SimulationResponse, Rejection> {
-    // Accept value in hex or decimal formats
-    let value = if let Some(value) = transaction.value {
-        if value.starts_with("0x") {
-            Some(Uint::from_str(value.as_str()).map_err(|_err| custom(FromHexError))?)
-        } else {
-            Some(Uint::from_dec_str(value.as_str()).map_err(|_err| custom(FromDecStrError))?)
-        }
-    } else {
-        None
-    };
+    for (address, state_override) in transaction.state_overrides.into_iter().flatten() {
+        evm.override_account(
+            address,
+            state_override.balance.map(Uint::from),
+            state_override.nonce,
+            state_override.code,
+            state_override.state.map(StorageOverride::from),
+        )?;
+    }
 
     let result = if commit {
         evm.call_raw_committing(
             transaction.from,
             transaction.to,
-            value,
+            transaction.value.map(Uint::from),
             transaction.data,
             transaction.gas_limit,
             transaction.format_trace.unwrap_or_default(),
@@ -138,7 +203,7 @@ async fn run(
         evm.call_raw(
             transaction.from,
             transaction.to,
-            value,
+            transaction.value.map(Uint::from),
             transaction.data,
             transaction.format_trace.unwrap_or_default(),
         )

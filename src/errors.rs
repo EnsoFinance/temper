@@ -11,16 +11,6 @@ pub struct ErrorMessage {
 }
 
 #[derive(Debug)]
-pub struct FromHexError;
-
-impl Reject for FromHexError {}
-
-#[derive(Debug)]
-pub struct FromDecStrError;
-
-impl Reject for FromDecStrError {}
-
-#[derive(Debug)]
 pub struct NoURLForChainIdError;
 
 impl Reject for NoURLForChainIdError {}
@@ -51,6 +41,11 @@ pub struct StateNotFound();
 impl Reject for StateNotFound {}
 
 #[derive(Debug)]
+pub struct OverrideError;
+
+impl Reject for OverrideError {}
+
+#[derive(Debug)]
 pub struct EvmError(pub Report);
 
 impl Reject for EvmError {}
@@ -65,12 +60,6 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
     } else if let Some(_e) = err.find::<StateNotFound>() {
         code = StatusCode::NOT_FOUND;
         message = "STATE_NOT_FOUND".to_string();
-    } else if let Some(FromHexError) = err.find() {
-        code = StatusCode::BAD_REQUEST;
-        message = "FROM_HEX_ERROR".to_string();
-    } else if let Some(FromDecStrError) = err.find() {
-        code = StatusCode::BAD_REQUEST;
-        message = "FROM_DEC_STR_ERROR".to_string();
     } else if let Some(NoURLForChainIdError) = err.find() {
         code = StatusCode::BAD_REQUEST;
         message = "CHAIN_ID_NOT_SUPPORTED".to_string();
@@ -86,6 +75,9 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
     } else if let Some(_e) = err.find::<InvalidBlockNumbersError>() {
         code = StatusCode::BAD_REQUEST;
         message = "INVALID_BLOCK_NUMBERS".to_string();
+    } else if let Some(_e) = err.find::<OverrideError>() {
+        code = StatusCode::INTERNAL_SERVER_ERROR;
+        message = "OVERRIDE_ERROR".to_string();
     } else if let Some(_e) = err.find::<EvmError>() {
         if _e.0.to_string().contains("CallGasCostMoreThanGasLimit") {
             code = StatusCode::BAD_REQUEST;

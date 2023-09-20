@@ -1,4 +1,6 @@
-use ethers::abi::{Address, Uint};
+use std::collections::HashMap;
+
+use ethers::abi::{Address, Hash, Uint};
 use ethers::core::types::Log;
 use ethers::types::Bytes;
 use foundry_config::Chain;
@@ -7,10 +9,13 @@ use foundry_evm::executor::{opts::EvmOpts, Backend, ExecutorBuilder};
 use foundry_evm::trace::identifier::{EtherscanIdentifier, SignaturesIdentifier};
 use foundry_evm::trace::node::CallTraceNode;
 use foundry_evm::trace::{CallTraceArena, CallTraceDecoder, CallTraceDecoderBuilder};
+use foundry_evm::utils::{h160_to_b160, u256_to_ru256};
+use revm::db::DatabaseRef;
 use revm::interpreter::InstructionResult;
-use revm::primitives::Env;
+use revm::primitives::{Account, Bytecode, Env, StorageSlot};
+use revm::DatabaseCommit;
 
-use crate::errors::EvmError;
+use crate::errors::{EvmError, OverrideError};
 use crate::simulation::CallTrace;
 
 #[derive(Debug, Clone)]
@@ -34,6 +39,12 @@ impl From<CallTraceNode> for CallTrace {
             value: item.trace.value,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StorageOverride {
+    pub slots: HashMap<Hash, Uint>,
+    pub diff: bool,
 }
 
 pub struct Evm {
@@ -153,6 +164,56 @@ impl Evm {
             return_data: Bytes(res.result),
             formatted_trace,
         })
+    }
+
+    pub fn override_account(
+        &mut self,
+        address: Address,
+        balance: Option<Uint>,
+        nonce: Option<u64>,
+        code: Option<Bytes>,
+        storage: Option<StorageOverride>,
+    ) -> Result<(), OverrideError> {
+        let address = h160_to_b160(address);
+        let mut account = Account {
+            info: self
+                .executor
+                .backend()
+                .basic(address)
+                .map_err(|_| OverrideError)?
+                .unwrap_or_default(),
+            ..Account::new_not_existing()
+        };
+
+        if let Some(balance) = balance {
+            account.info.balance = u256_to_ru256(balance);
+        }
+        if let Some(nonce) = nonce {
+            account.info.nonce = nonce;
+        }
+        if let Some(code) = code {
+            account.info.code = Some(Bytecode::new_raw(code.to_vec().into()));
+        }
+        if let Some(storage) = storage {
+            // If we do a "full storage override", make sure to set this flag so
+            // that existing storage slots are cleared, and unknown ones aren't
+            // fetched from the forked node.
+            account.storage_cleared = !storage.diff;
+            account
+                .storage
+                .extend(storage.slots.into_iter().map(|(key, value)| {
+                    (
+                        u256_to_ru256(Uint::from_big_endian(key.as_bytes())),
+                        StorageSlot::new(u256_to_ru256(value)),
+                    )
+                }));
+        }
+
+        self.executor
+            .backend_mut()
+            .commit([(address, account)].into_iter().collect());
+
+        Ok(())
     }
 
     pub async fn call_raw_committing(
