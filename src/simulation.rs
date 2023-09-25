@@ -5,6 +5,7 @@ use std::sync::Arc;
 use dashmap::mapref::one::RefMut;
 use ethers::abi::{Address, Hash, Uint};
 use ethers::core::types::Log;
+use ethers::types::transaction::eip2930::AccessList;
 use ethers::types::Bytes;
 use foundry_evm::CallKind;
 use revm::interpreter::InstructionResult;
@@ -22,7 +23,7 @@ use crate::evm::StorageOverride;
 use crate::SharedSimulationState;
 
 use super::config::Config;
-use super::evm::Evm;
+use super::evm::{CallRawRequest, Evm};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +34,7 @@ pub struct SimulationRequest {
     pub data: Option<Bytes>,
     pub gas_limit: u64,
     pub value: Option<PermissiveUint>,
+    pub access_list: Option<AccessList>,
     pub block_number: Option<u64>,
     pub state_overrides: Option<HashMap<Address, StateOverride>>,
     pub format_trace: Option<bool>,
@@ -189,25 +191,18 @@ async fn run(
         )?;
     }
 
+    let call = CallRawRequest {
+        from: transaction.from,
+        to: transaction.to,
+        value: transaction.value.map(Uint::from),
+        data: transaction.data,
+        access_list: transaction.access_list,
+        format_trace: transaction.format_trace.unwrap_or_default(),
+    };
     let result = if commit {
-        evm.call_raw_committing(
-            transaction.from,
-            transaction.to,
-            transaction.value.map(Uint::from),
-            transaction.data,
-            transaction.gas_limit,
-            transaction.format_trace.unwrap_or_default(),
-        )
-        .await?
+        evm.call_raw_committing(call, transaction.gas_limit).await?
     } else {
-        evm.call_raw(
-            transaction.from,
-            transaction.to,
-            transaction.value.map(Uint::from),
-            transaction.data,
-            transaction.format_trace.unwrap_or_default(),
-        )
-        .await?
+        evm.call_raw(call).await?
     };
 
     Ok(SimulationResponse {
