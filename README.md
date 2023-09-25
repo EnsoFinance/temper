@@ -233,7 +233,16 @@ export type SimulationRequest = {
   gasLimit: number;
   value: string;
   blockNumber?: number; // if not specified, latest used,
+  stateOverrides?: Record<string, StateOverride>;
   formatTrace?: boolean;
+};
+
+export type StateOverride = {
+  balance?: string;
+  nonce?: number;
+  code?: string;
+  state?: Record<string, string>;
+  stateDiff?: Record<string, string>;
 };
 
 export type SimulationResponse = {

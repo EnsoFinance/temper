@@ -34,8 +34,8 @@ pub struct SimulationRequest {
     pub gas_limit: u64,
     pub value: Option<PermissiveUint>,
     pub block_number: Option<u64>,
-    pub format_trace: Option<bool>,
     pub state_overrides: Option<HashMap<Address, StateOverride>>,
+    pub format_trace: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
