@@ -155,6 +155,58 @@ async fn post_simulate_zerox_swap() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn post_simulate_access_lists() {
+    let simulate_gas_used = |access_list: serde_json::Value| async move {
+        let filter = filter();
+
+        let json = serde_json::json!({
+          "chainId": 1,
+          "from": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+          "to": "0x0000000000000000000000000000000000000000",
+          "gasLimit": 50000,
+          "accessList": access_list,
+        });
+
+        let res = warp::test::request()
+            .method("POST")
+            .path("/simulate")
+            .json(&json)
+            .reply(&filter)
+            .await;
+
+        assert_eq!(res.status(), 200);
+
+        serde_json::from_slice::<SimulationResponse>(res.body())
+            .unwrap()
+            .gas_used
+    };
+
+    const TX_COST: u64 = 21_000;
+    const ADDRESS_COST: u64 = 2400;
+    const STORAGE_KEY_COST: u64 = 1900;
+
+    assert_eq!(simulate_gas_used(serde_json::json!([])).await, TX_COST);
+    assert_eq!(
+        simulate_gas_used(serde_json::json!([
+          {
+            "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            "storageKeys": [],
+          },
+          {
+            "address": "0xDEf1CA1fb7FBcDC777520aa7f396b4E015F497aB",
+            "storageKeys": [
+              "0xfca351f4d96129454cfc8ef7930b638ac71fea35eb69ee3b8d959496beb04a33",
+              "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "0x0000000000000000000000000000000000000000000000000000000000000001",
+            ],
+          },
+        ]))
+        .await,
+        TX_COST + ADDRESS_COST * 2 + STORAGE_KEY_COST * 3,
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_state_overrides() {
     let filter = filter();
 

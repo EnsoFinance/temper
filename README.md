@@ -232,9 +232,15 @@ export type SimulationRequest = {
   data?: string;
   gasLimit: number;
   value: string;
+  accessList?: AccessListItem[];
   blockNumber?: number; // if not specified, latest used,
   stateOverrides?: Record<string, StateOverride>;
   formatTrace?: boolean;
+};
+
+export type AccessListItem = {
+  address: string;
+  storageKeys: string[];
 };
 
 export type StateOverride = {
