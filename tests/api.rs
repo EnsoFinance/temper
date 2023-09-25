@@ -155,6 +155,41 @@ async fn post_simulate_zerox_swap() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn post_simulate_state_overrides() {
+    let filter = filter();
+
+    let json = serde_json::json!({
+      "chainId": 1,
+      "from": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      "to": "0xDEf1CA1fb7FBcDC777520aa7f396b4E015F497aB",
+      "data": "0x70a08231000000000000000000000000d8da6bf26964af9d7eed9e03e53415d37aa96045",
+      "gasLimit": 5000000,
+      "stateOverrides": {
+        "0xDEf1CA1fb7FBcDC777520aa7f396b4E015F497aB": {
+          "stateDiff": {
+            "0xfca351f4d96129454cfc8ef7930b638ac71fea35eb69ee3b8d959496beb04a33":
+              "123456789012345678901234567890"
+          }
+        }
+      }
+    });
+
+    let res = warp::test::request()
+        .method("POST")
+        .path("/simulate")
+        .json(&json)
+        .reply(&filter)
+        .await;
+
+    assert_eq!(res.status(), 200);
+
+    let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
+    let result = U256::from_big_endian(&body.return_data);
+
+    assert_eq!(result.as_u128(), 123456789012345678901234567890);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_bundle_single_zerox_swap() {
     let filter = filter();
 
