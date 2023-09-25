@@ -55,6 +55,21 @@ pub struct EvmError(pub Report);
 
 impl Reject for EvmError {}
 
+#[derive(Debug)]
+pub struct InvalidRpcError();
+
+impl Reject for InvalidRpcError {}
+
+#[derive(Debug)]
+pub struct RpcError();
+
+impl Reject for RpcError {}
+
+#[derive(Debug)]
+pub struct InvalidIndexError();
+
+impl Reject for InvalidIndexError {}
+
 pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     let code;
     let message: String;
@@ -86,6 +101,9 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
     } else if let Some(_e) = err.find::<InvalidBlockNumbersError>() {
         code = StatusCode::BAD_REQUEST;
         message = "INVALID_BLOCK_NUMBERS".to_string();
+    } else if let Some(_e) = err.find::<InvalidIndexError>() {
+        code = StatusCode::BAD_REQUEST;
+        message = "INVALID_TRANSACTION_INDEX".to_string();
     } else if let Some(_e) = err.find::<EvmError>() {
         if _e.0.to_string().contains("CallGasCostMoreThanGasLimit") {
             code = StatusCode::BAD_REQUEST;
@@ -103,6 +121,12 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
             None => "BAD_REQUEST".to_string(),
         };
         code = StatusCode::BAD_REQUEST;
+    } else if let Some(_e) = err.find::<InvalidRpcError>() {
+        code = StatusCode::BAD_REQUEST;
+        message = "INVALID_RPC".to_string();
+    } else if let Some(_e) = err.find::<RpcError>() {
+        code = StatusCode::INTERNAL_SERVER_ERROR;
+        message = "RPC_ERROR".to_string();
     } else if err.find::<warp::reject::MethodNotAllowed>().is_some() {
         // We can handle a specific error, here METHOD_NOT_ALLOWED,
         // and render it however we want
