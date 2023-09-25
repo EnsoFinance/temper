@@ -168,7 +168,7 @@ async fn post_simulate_state_overrides() {
         "0xDEf1CA1fb7FBcDC777520aa7f396b4E015F497aB": {
           "stateDiff": {
             "0xfca351f4d96129454cfc8ef7930b638ac71fea35eb69ee3b8d959496beb04a33":
-              "100000000000000000000000000000000000000"
+              "123456789012345678901234567890"
           }
         }
       }
@@ -186,10 +186,7 @@ async fn post_simulate_state_overrides() {
     let body: SimulationResponse = serde_json::from_slice(res.body()).unwrap();
     let result = U256::from_big_endian(&body.return_data);
 
-    assert_eq!(
-        result,
-        U256::from_dec_str("100000000000000000000000000000000000000").unwrap(),
-    );
+    assert_eq!(result.as_u128(), 123456789012345678901234567890);
 }
 
 #[tokio::test(flavor = "multi_thread")]
