@@ -1,7 +1,6 @@
 use std::{fs::File, sync::Arc};
 
 use dashmap::DashMap;
-use ethers::types::U256;
 use enso_temper::{
     config::config,
     errors::{handle_rejection, ErrorMessage},
@@ -12,6 +11,7 @@ use enso_temper::{
     },
     SharedSimulationState,
 };
+use ethers::types::U256;
 use warp::Filter;
 
 fn filter() -> impl Filter<Extract = (impl warp::Reply,), Error = std::convert::Infallible> + Clone
