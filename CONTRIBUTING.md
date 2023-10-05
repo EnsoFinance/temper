@@ -1,4 +1,4 @@
-## Contributing to transaction-simulator
+## Contributing to Temper
 
 We welcome all contributions! We just ask a few small things.
 

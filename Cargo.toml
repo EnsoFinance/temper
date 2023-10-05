@@ -1,7 +1,12 @@
 [package]
-name = "transaction-simulator"
+name = "enso-temper"
 version = "0.1.0"
 edition = "2021"
+authors = ["Enso Finance"]
+license = "MIT"
+description = "Temper is an Ethereum Transaction Simulator"
+homepage = "https://github.com/EnsoFinance/temper"
+repository = "https://github.com/EnsoFinance/temper"
 
 [dependencies]
 # http
