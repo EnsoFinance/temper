@@ -371,37 +371,31 @@ async fn post_simulate_no_data() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_incorrect_chain_id() {
-    temp_env::async_with_vars(
-        [(
-            "FORK_URL",
-            Some("https://eth.llamarpc.com"),
-        )],
-        async {
-            let filter = filter();
+    temp_env::async_with_vars([("FORK_URL", Some("https://eth.llamarpc.com"))], async {
+        let filter = filter();
 
-            let json = serde_json::json!({
-              "chainId": 137,
-              "from": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-              "to": "0x95222290dd7278aa3ddd389cc1e1d165cc4bafe5",
-              "gasLimit": 21000,
-              "value": "100000",
-              "blockNumber": 16784600
-            });
+        let json = serde_json::json!({
+          "chainId": 137,
+          "from": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+          "to": "0x95222290dd7278aa3ddd389cc1e1d165cc4bafe5",
+          "gasLimit": 21000,
+          "value": "100000",
+          "blockNumber": 16784600
+        });
 
-            let res = warp::test::request()
-                .method("POST")
-                .path("/simulate")
-                .json(&json)
-                .reply(&filter)
-                .await;
+        let res = warp::test::request()
+            .method("POST")
+            .path("/simulate")
+            .json(&json)
+            .reply(&filter)
+            .await;
 
-            assert_eq!(res.status(), 400);
+        assert_eq!(res.status(), 400);
 
-            let body: ErrorMessage = serde_json::from_slice(res.body()).unwrap();
+        let body: ErrorMessage = serde_json::from_slice(res.body()).unwrap();
 
-            assert_eq!(body.message, "INCORRECT_CHAIN_ID".to_string());
-        },
-    )
+        assert_eq!(body.message, "INCORRECT_CHAIN_ID".to_string());
+    })
     .await;
 }
 
