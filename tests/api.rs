@@ -374,7 +374,7 @@ async fn post_simulate_incorrect_chain_id() {
     temp_env::async_with_vars(
         [(
             "FORK_URL",
-            Some("https://eth-mainnet.g.alchemy.com/v2/demo"),
+            Some("https://eth.llamarpc.com"),
         )],
         async {
             let filter = filter();
