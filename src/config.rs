@@ -6,6 +6,7 @@ pub struct Config {
     pub fork_url: Option<String>,
     pub etherscan_key: Option<String>,
     pub api_key: Option<String>,
+    pub max_request_size: u64,
 }
 
 pub fn config() -> Config {
@@ -24,12 +25,18 @@ fn load_config() -> Config {
         .ok()
         .filter(|k| !k.is_empty());
     let api_key = std::env::var("API_KEY").ok().filter(|k| !k.is_empty());
+    let max_request_size = std::env::var("MAX_REQUEST_SIZE")
+        .unwrap_or("16".to_string())
+        .parse::<u64>()
+        .expect("MAX_REQUEST_SIZE must be a valid u64")
+        * 1024;
 
     Config {
         fork_url,
         port,
         etherscan_key,
         api_key,
+        max_request_size,
     }
 }
 

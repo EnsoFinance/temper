@@ -25,16 +25,16 @@ pub fn simulate_routes(
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     simulate(config.clone())
         .or(simulate_bundle(config.clone()))
-        .or(simulate_stateful_new(config, state.clone()))
+        .or(simulate_stateful_new(config.clone(), state.clone()))
         .or(simulate_stateful_end(state.clone()))
-        .or(simulate_stateful(state))
+        .or(simulate_stateful(config, state))
 }
 
 /// POST /simulate
 pub fn simulate(config: Config) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!("simulate")
         .and(warp::post())
-        .and(json_body::<SimulationRequest>())
+        .and(json_body::<SimulationRequest>(&config))
         .and(with_config(config))
         .and_then(simulation::simulate)
 }
@@ -45,7 +45,7 @@ pub fn simulate_bundle(
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!("simulate-bundle")
         .and(warp::post())
-        .and(json_body())
+        .and(json_body(&config))
         .and(with_config(config))
         .and_then(simulation::simulate_bundle)
 }
@@ -57,7 +57,7 @@ pub fn simulate_stateful_new(
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!("simulate-stateful")
         .and(warp::post())
-        .and(json_body::<StatefulSimulationRequest>())
+        .and(json_body::<StatefulSimulationRequest>(&config))
         .and(with_config(config))
         .and(with_state(state))
         .and_then(simulation::simulate_stateful_new)
@@ -75,11 +75,12 @@ pub fn simulate_stateful_end(
 
 /// POST /simulate-stateful/{statefulSimulationId}
 pub fn simulate_stateful(
+    config: Config,
     state: Arc<SharedSimulationState>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!("simulate-stateful" / Uuid)
         .and(warp::post())
-        .and(json_body())
+        .and(json_body(&config))
         .and(with_state(state))
         .and_then(simulation::simulate_stateful)
 }
@@ -97,7 +98,8 @@ fn with_state(
     warp::any().map(move || state.clone())
 }
 
-fn json_body<T: DeserializeOwned + Send>() -> impl Filter<Extract = (T,), Error = Rejection> + Clone
-{
-    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+fn json_body<T: DeserializeOwned + Send>(
+    config: &Config,
+) -> impl Filter<Extract = (T,), Error = Rejection> + Clone {
+    warp::body::content_length_limit(config.max_request_size).and(warp::body::json())
 }
