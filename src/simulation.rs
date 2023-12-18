@@ -36,6 +36,7 @@ pub struct SimulationRequest {
     pub value: Option<PermissiveUint>,
     pub access_list: Option<AccessList>,
     pub block_number: Option<u64>,
+    pub block_timestamp: Option<u64>,
     pub state_overrides: Option<HashMap<Address, StateOverride>>,
     pub format_trace: Option<bool>,
 }
@@ -60,6 +61,7 @@ pub struct StatefulSimulationRequest {
     pub chain_id: u64,
     pub gas_limit: u64,
     pub block_number: Option<u64>,
+    pub block_timestamp: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -241,6 +243,12 @@ pub async fn simulate(transaction: SimulationRequest, config: Config) -> Result<
         return Err(warp::reject::custom(IncorrectChainIdError()));
     }
 
+    if let Some(timestamp) = transaction.block_timestamp {
+        evm.set_block_timestamp(timestamp)
+            .await
+            .expect("failed to set block timestamp");
+    }
+
     let response = run(&mut evm, transaction, false).await?;
 
     Ok(warp::reply::json(&response))
@@ -252,6 +260,7 @@ pub async fn simulate_bundle(
 ) -> Result<Json, Rejection> {
     let first_chain_id = transactions[0].chain_id;
     let first_block_number = transactions[0].block_number;
+    let first_block_timestamp = transactions[0].block_timestamp;
 
     let fork_url = config
         .fork_url
@@ -267,6 +276,12 @@ pub async fn simulate_bundle(
 
     if evm.get_chain_id() != Uint::from(first_chain_id) {
         return Err(warp::reject::custom(IncorrectChainIdError()));
+    }
+
+    if let Some(timestamp) = first_block_timestamp {
+        evm.set_block_timestamp(timestamp)
+            .await
+            .expect("failed to set block timestamp");
     }
 
     let mut response = Vec::with_capacity(transactions.len());
@@ -303,7 +318,7 @@ pub async fn simulate_stateful_new(
     let fork_url = config
         .fork_url
         .unwrap_or(chain_id_to_fork_url(stateful_simulation_request.chain_id)?);
-    let evm = Evm::new(
+    let mut evm = Evm::new(
         None,
         fork_url,
         stateful_simulation_request.block_number,
@@ -311,6 +326,11 @@ pub async fn simulate_stateful_new(
         true,
         config.etherscan_key,
     );
+
+    if let Some(timestamp) = stateful_simulation_request.block_timestamp {
+        evm.set_block_timestamp(timestamp).await?;
+    }
+
     let new_id = Uuid::new_v4();
     state.evms.insert(new_id, Arc::new(Mutex::new(evm)));
 

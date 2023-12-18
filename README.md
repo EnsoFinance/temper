@@ -234,6 +234,7 @@ export type SimulationRequest = {
   value: string;
   accessList?: AccessListItem[];
   blockNumber?: number; // if not specified, latest used,
+  blockTimestamp?: number; // if not specified, timestamp of latest block is used,
   stateOverrides?: Record<string, StateOverride>;
   formatTrace?: boolean;
 };
