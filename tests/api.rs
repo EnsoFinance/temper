@@ -2,7 +2,7 @@ use std::{fs::File, sync::Arc};
 
 use dashmap::DashMap;
 use enso_temper::{
-    config::config,
+    config::{config, Config},
     errors::{handle_rejection, ErrorMessage},
     simulate_routes,
     simulation::{
@@ -14,14 +14,15 @@ use enso_temper::{
 use ethers::types::U256;
 use warp::Filter;
 
-fn filter() -> impl Filter<Extract = (impl warp::Reply,), Error = std::convert::Infallible> + Clone
-{
+fn filter(
+    config: Config,
+) -> impl Filter<Extract = (impl warp::Reply,), Error = std::convert::Infallible> + Clone {
     let shared_state: Arc<SharedSimulationState> = Arc::new(SharedSimulationState {
         evms: Arc::new(DashMap::new()),
     });
 
     warp::any()
-        .and(simulate_routes(config(), shared_state))
+        .and(simulate_routes(config, shared_state))
         .recover(handle_rejection)
 }
 
@@ -32,7 +33,7 @@ async fn post_simulate_file() {
         return;
     }
 
-    let filter = filter();
+    let filter = filter(config());
 
     let file = File::open("tests/body.json").expect("file should open read only");
     let json: SimulationRequest =
@@ -70,7 +71,7 @@ async fn post_simulate_file_etherscan() {
         return;
     }
 
-    let filter = filter();
+    let filter = filter(config());
 
     let file = File::open("tests/body.json").expect("file should open read only");
     let json: SimulationRequest =
@@ -100,7 +101,7 @@ async fn post_simulate_file_etherscan() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_frax_tx() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!({
       "chainId": 1,
@@ -128,7 +129,7 @@ async fn post_simulate_frax_tx() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_zerox_swap() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!({
       "chainId": 1,
@@ -157,7 +158,7 @@ async fn post_simulate_zerox_swap() {
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_access_lists() {
     let simulate_gas_used = |access_list: serde_json::Value| async move {
-        let filter = filter();
+        let filter = filter(config());
 
         let json = serde_json::json!({
           "chainId": 1,
@@ -208,7 +209,7 @@ async fn post_simulate_access_lists() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_state_overrides() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!({
       "chainId": 1,
@@ -243,7 +244,7 @@ async fn post_simulate_state_overrides() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_bundle_single_zerox_swap() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!([{
       "chainId": 1,
@@ -272,7 +273,7 @@ async fn post_simulate_bundle_single_zerox_swap() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_bundle() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!([{
       "chainId": 1,
@@ -308,7 +309,7 @@ async fn post_simulate_bundle() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_bundle_second_reverts() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!([{
       "chainId": 1,
@@ -344,7 +345,7 @@ async fn post_simulate_bundle_second_reverts() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_no_data() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!({
       "chainId": 1,
@@ -372,7 +373,7 @@ async fn post_simulate_no_data() {
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_incorrect_chain_id() {
     temp_env::async_with_vars([("FORK_URL", Some("https://eth.llamarpc.com"))], async {
-        let filter = filter();
+        let filter = filter(config());
 
         let json = serde_json::json!({
           "chainId": 137,
@@ -401,7 +402,7 @@ async fn post_simulate_incorrect_chain_id() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_not_enough_gas() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!({
       "chainId": 1,
@@ -428,7 +429,7 @@ async fn post_simulate_not_enough_gas() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_invalid_from() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!({
       "chainId": 1,
@@ -456,7 +457,7 @@ async fn post_simulate_invalid_from() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_invalid_to() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!({
       "chainId": 1,
@@ -484,7 +485,7 @@ async fn post_simulate_invalid_to() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_invalid_data() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!({
       "chainId": 1,
@@ -515,7 +516,7 @@ async fn post_simulate_invalid_data() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_bundle_multiple_block_numbers() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!([{
       "chainId": 1,
@@ -583,7 +584,7 @@ async fn post_simulate_bundle_multiple_block_numbers() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_bundle_multiple_block_numbers_invalid_order() {
-    let filter = filter();
+    let filter = filter(config());
 
     let json = serde_json::json!([{
       "chainId": 1,
@@ -617,7 +618,7 @@ async fn post_simulate_bundle_multiple_block_numbers_invalid_order() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_stateful() {
-    let filter = filter();
+    let filter = filter(config());
 
     let new_simulation_req = serde_json::json!({
         "chainId": 1,
@@ -758,7 +759,11 @@ async fn post_simulate_stateful() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn post_simulate_time_sensitive_tx() {
-    let filter = filter();
+    let config = Config {
+        max_request_size: 64 * 1024,
+        ..config()
+    };
+    let filter = filter(config);
 
     let mut json = serde_json::json!({
       "chainId": 1,
